@@ -19,7 +19,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "8444:80"
+      - "8444:8444"
     volumes:
       - ./frontend/.htpasswd:/etc/nginx/.htpasswd:ro
     depends_on:
