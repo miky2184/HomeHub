@@ -51,12 +51,16 @@ Il frontend fa anche da reverse proxy verso il backend (un solo entry point, por
 cd frontend
 # richiede il pacchetto "apache2-utils" (Debian/Ubuntu) o "httpd-tools" (RHEL) per il comando htpasswd
 sudo apt install -y apache2-utils   # se non già presente
-htpasswd -c .htpasswd homehub
+htpasswd -c -s .htpasswd homehub
 # ti chiede la password interattivamente: scegline una robusta, non la condividere in chat/commit
 cd ..
 ```
 
+> **Importante**: usa sempre `-s` (hash SHA, formato `{SHA}...`). Il container frontend è basato su `nginx:alpine` (musl libc), che **non supporta l'hash `$apr1$`** generato di default da `htpasswd` — nginx non riuscirebbe mai a validare la password (401 anche con le credenziali giuste, senza nessun errore esplicito). `-s` fa usare a nginx la sua verifica SHA1 interna, che funziona su qualunque immagine.
+
 `frontend/.htpasswd` è escluso da Git (vedi `frontend/.gitignore`): resta solo sul NUC.
+
+Se hai già creato il file con `htpasswd -c .htpasswd ...` (senza `-s`) e noti un 401 persistente anche con le credenziali corrette, rigeneralo con `-s` e fai `docker compose restart frontend`.
 
 Se la subnet della tua LAN non è `192.168.1.0/24`, apri [frontend/nginx.conf](frontend/nginx.conf) e correggi le righe `allow 192.168.1.0/24;` con quella corretta (es. `192.168.0.0/24`) — altrimenti i dispositivi di casa si troverebbero comunque a dover fare login.
 
