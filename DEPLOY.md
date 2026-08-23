@@ -60,6 +60,10 @@ cd ..
 
 Se la subnet della tua LAN non è `192.168.1.0/24`, apri [frontend/nginx.conf](frontend/nginx.conf) e correggi le righe `allow 192.168.1.0/24;` con quella corretta (es. `192.168.0.0/24`) — altrimenti i dispositivi di casa si troverebbero comunque a dover fare login.
 
+> **Nota**: `nginx.conf` viene copiato dentro l'immagine al build (`COPY nginx.conf ...` nel Dockerfile) — se lo modifichi devi rifare `docker compose up -d --build` (non basta un riavvio) perché la modifica abbia effetto.
+
+> **Perché `curl http://localhost:8444/...` sul NUC chiede la password anche se sei "in LAN"**: il traffico verso `localhost`, passando per il port mapping di Docker, arriva a nginx con un IP sorgente NAT-ato nel bridge Docker (non `127.0.0.1`) — per questo `nginx.conf` whitelista anche `172.16.0.0/12` (le subnet dei bridge Docker, un range privato quindi sicuro). Con quella regola sia `curl` sul NUC sia il kiosk stesso puntato su `localhost:8444` funzionano senza login.
+
 ## 5. Build e avvio con Docker Compose
 
 Il frontend ora fa anche da reverse proxy: il backend **non pubblica più nessuna porta** sull'host, è raggiungibile solo dal container frontend (rete Docker interna). L'unico punto d'ingresso è la porta **8444** del frontend (host → container 80), sia per la UI che per `/api/*`.
