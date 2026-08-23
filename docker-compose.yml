@@ -1,0 +1,22 @@
+# Deploy sul NUC (ARCHITECTURE.md §8). Nessun servizio Postgres qui: HomeHub si
+# collega all'istanza Postgres già esistente sulla LAN (vedi backend/.env).
+
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
