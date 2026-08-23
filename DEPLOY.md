@@ -93,6 +93,7 @@ Hai scelto di rendere HomeHub raggiungibile anche da fuori casa via port forward
 - Da dentro casa (subnet configurata in `frontend/nginx.conf`) l'app resta senza login, come da progetto originale.
 - Da fuori casa, il browser chiederà la Basic Auth (utente/password creati al passo 4).
 - **Limite di questa configurazione**: il traffico verso la porta esposta viaggia in HTTP semplice, non cifrato — su internet, in teoria intercettabile lungo il percorso (molto meno probabile del semplice bersagliamento automatico della porta, ma non escluso). Se vuoi eliminare anche questo rischio in un secondo momento, le opzioni più semplici sono: (a) un dominio + certificato Let's Encrypt davanti a nginx, oppure (b) sostituire il port forwarding con una VPN verso casa (es. Tailscale), che cifra tutto e non richiede porte aperte. Per ora procediamo così, come richiesto.
+- **Browser aziendali/gestiti (es. Edge con policy IT) possono bloccare in silenzio il popup di Basic Auth su siti HTTP semplice** (non HTTPS), per policy di sicurezza dell'organizzazione — nessun errore esplicito, il popup semplicemente non appare mai, anche con server e credenziali corretti (verificato: da Safari/browser personale funziona regolarmente). Non è un problema di HomeHub e non è risolvibile lato server; le opzioni sono usare un browser/dispositivo personale, oppure passare a HTTPS (vedi punto sopra) che in genere non è soggetto alle stesse restrizioni.
 
 ## 5. Iterare pagina per pagina
 
