@@ -197,6 +197,8 @@ Ogni integrazione esterna è isolata in un modulo/adapter con la stessa interfac
 ## 8. Deployment sul NUC
 
 - **Docker Compose** con due servizi: `frontend` (build statica + nginx) e `backend` (Python/FastAPI). Nessun container Postgres da gestire: HomeHub si collega all'istanza Postgres già esistente (solo credenziali/connection string in `.env`, più migrazione Alembic per creare lo schema dedicato `homehub`).
+- **Un solo punto d'ingresso esposto**: nginx (nel container frontend) serve la SPA e fa da reverse proxy verso il backend su `/api/*`; il backend non pubblica alcuna porta sull'host, è raggiungibile solo dal frontend via rete Docker interna. Riduce la superficie esposta a una sola porta, importante dato che l'utente ha scelto di rendere HomeHub raggiungibile anche da fuori casa via port forwarding sul router (vedi DEPLOY.md).
+- Poiché non c'è login per design (scelta multi-utente, §2), l'accesso da fuori la LAN di casa richiede **Basic Auth** (nginx `auth_basic`, bypassata per gli indirizzi della LAN via `allow`/`deny`) — zero attrito da dentro casa, credenziali richieste solo da remoto. Dettagli e generazione delle credenziali in [DEPLOY.md](DEPLOY.md).
 - Chromium in **kiosk mode**, autostart via systemd, puntato su `http://localhost` (o porta del frontend).
 - systemd con `Restart=always` sia per i container che per il processo Chromium, per resilienza dopo reboot/crash.
 - Rotazione schermo: già gestita a livello OS (dato che MagicMirror gira già verticale sullo stesso setup).

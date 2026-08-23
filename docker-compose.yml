@@ -1,22 +1,26 @@
 # Deploy sul NUC (ARCHITECTURE.md §8). Nessun servizio Postgres qui: HomeHub si
 # collega all'istanza Postgres già esistente sulla LAN (vedi backend/.env).
+#
+# Un solo punto d'ingresso esposto (frontend, porta 80): il backend NON
+# pubblica più la sua porta sull'host, è raggiungibile solo dal container
+# frontend via rete Docker interna (proxy /api in frontend/nginx.conf).
+# Vedi DEPLOY.md per il modello di sicurezza e come generare .htpasswd.
 
 services:
   backend:
     build: ./backend
     env_file:
       - ./backend/.env
-    ports:
-      - "8000:8000"
     restart: always
+    # niente "ports": non deve essere raggiungibile dall'host/LAN/router,
+    # solo dal container frontend tramite la rete Docker interna
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        VITE_API_BASE_URL: http://localhost:8000
+    build: ./frontend
     ports:
       - "80:80"
+    volumes:
+      - ./frontend/.htpasswd:/etc/nginx/.htpasswd:ro
     depends_on:
       - backend
     restart: always

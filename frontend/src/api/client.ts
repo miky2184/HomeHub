@@ -1,4 +1,7 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+// Stringa vuota = stesso host/porta della pagina (nginx fa da reverse proxy
+// verso il backend su /api, vedi frontend/nginx.conf). In dev locale senza
+// Docker, VITE_API_BASE_URL punta invece direttamente a uvicorn.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {

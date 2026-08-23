@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Basic auth per l'esposizione esterna (mai committare), vedi DEPLOY.md
+.htpasswd
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
