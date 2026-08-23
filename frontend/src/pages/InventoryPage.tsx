@@ -1,3 +1,4 @@
+import { House } from 'lucide-react'
 import { useInventoryAlerts, useMarkConsumed } from '../api/hooks'
 import { Card } from '../components/Card'
 import { buttonStyle } from '../styles/controls'
@@ -8,7 +9,7 @@ export function InventoryPage() {
 
   return (
     <>
-      <h1 style={{ fontSize: 'var(--fs-heading)', margin: '4px 0 8px' }}>Home inventory</h1>
+      <h1 style={{ fontSize: 'var(--fs-greeting)', margin: '4px 0 8px' }}>Casa</h1>
 
       {isLoading && <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>}
 
@@ -17,7 +18,7 @@ export function InventoryPage() {
       )}
 
       {(alerts ?? []).map((alert) => (
-        <Card key={alert.id} label="Scorta in esaurimento" variant="warning">
+        <Card key={alert.id} label="Scorta in esaurimento" icon={House} category="casa" variant="warning">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <p style={{ margin: 0, fontSize: 'var(--fs-body)' }}>
               {alert.item_name}

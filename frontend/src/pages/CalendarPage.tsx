@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CalendarDays, Plus } from 'lucide-react'
 import { useAddCalendarEvent, useCalendarEvents } from '../api/hooks'
 import { Card } from '../components/Card'
 import { buttonStyle, inputStyle } from '../styles/controls'
@@ -28,9 +29,9 @@ export function CalendarPage() {
 
   return (
     <>
-      <h1 style={{ fontSize: 'var(--fs-heading)', margin: '4px 0 8px' }}>Calendario</h1>
+      <h1 style={{ fontSize: 'var(--fs-greeting)', margin: '4px 0 8px' }}>Agenda</h1>
 
-      <Card label="Aggiungi evento">
+      <Card label="Aggiungi evento" icon={Plus} category="agenda">
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <input
             placeholder="Titolo evento"
@@ -51,12 +52,13 @@ export function CalendarPage() {
       {isLoading && <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>}
 
       {sorted.map((event) => (
-        <Card key={event.id} label={new Intl.DateTimeFormat('it-IT', { dateStyle: 'full' }).format(new Date(event.start))}>
+        <Card
+          key={event.id}
+          label={new Intl.DateTimeFormat('it-IT', { dateStyle: 'full' }).format(new Date(event.start))}
+          icon={CalendarDays}
+          category="agenda"
+        >
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <span
-              aria-hidden
-              style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }}
-            />
             <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-secondary)', width: 56 }}>
               {new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit' }).format(new Date(event.start))}
             </span>

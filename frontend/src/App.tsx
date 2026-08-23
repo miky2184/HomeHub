@@ -6,6 +6,7 @@ import { FinancePage } from './pages/FinancePage'
 import { HomePage } from './pages/HomePage'
 import { InventoryPage } from './pages/InventoryPage'
 import { MenuPage } from './pages/MenuPage'
+import { SettingsPage } from './pages/SettingsPage'
 import { ShoppingPage } from './pages/ShoppingPage'
 import { TrainingPage } from './pages/TrainingPage'
 
@@ -26,6 +27,7 @@ function App() {
             <Route path="spesa" element={<ShoppingPage />} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="finanze" element={<FinancePage />} />
+            <Route path="impostazioni" element={<SettingsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

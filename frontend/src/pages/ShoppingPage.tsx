@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Plus, ShoppingBasket, Trash2 } from 'lucide-react'
 import { useAddShoppingItem, useRemoveShoppingItem, useShoppingList, useToggleShoppingItem } from '../api/hooks'
 import { Card } from '../components/Card'
 import { buttonStyle, inputStyle } from '../styles/controls'
@@ -18,9 +18,9 @@ export function ShoppingPage() {
 
   return (
     <>
-      <h1 style={{ fontSize: 'var(--fs-heading)', margin: '4px 0 8px' }}>Lista della spesa</h1>
+      <h1 style={{ fontSize: 'var(--fs-greeting)', margin: '4px 0 8px' }}>Lista della spesa</h1>
 
-      <Card label="Aggiungi articolo">
+      <Card label="Aggiungi articolo" icon={Plus} category="spesa">
         <div style={{ display: 'flex', gap: 10 }}>
           <input
             value={name}
@@ -35,7 +35,7 @@ export function ShoppingPage() {
 
       {isLoading && <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>}
 
-      <Card label={`Articoli · ${items?.length ?? 0}`}>
+      <Card label={`Articoli · ${items?.length ?? 0}`} icon={ShoppingBasket} category="spesa">
         {(items ?? []).map((item) => (
           <div
             key={item.id}

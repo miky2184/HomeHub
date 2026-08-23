@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChefHat } from 'lucide-react'
 import { useMenuWeek, useUpsertSchoolMenu } from '../api/hooks'
 import { Card } from '../components/Card'
 import { DAY_LABELS, currentWeekStart } from '../lib/date'
@@ -6,7 +7,7 @@ import { buttonStyle, inputStyle } from '../styles/controls'
 
 export function MenuPage() {
   const weekStart = currentWeekStart()
-  const { data: week, isLoading } = useMenuWeek(weekStart)
+  const { data: week, isLoading, isError } = useMenuWeek(weekStart)
   const upsertSchoolMenu = useUpsertSchoolMenu(weekStart)
   const [drafts, setDrafts] = useState<Record<number, string>>({})
 
@@ -19,14 +20,17 @@ export function MenuPage() {
     setDrafts(next)
   }, [week])
 
-  if (isLoading || !week) return <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>
+  if (isLoading) return <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>
+  if (isError || !week) {
+    return <p style={{ color: 'var(--danger)' }}>Impossibile caricare il menu (richiede il Postgres configurato in backend/.env).</p>
+  }
 
   return (
     <>
-      <h1 style={{ fontSize: 'var(--fs-heading)', margin: '4px 0 8px' }}>Menu della settimana</h1>
+      <h1 style={{ fontSize: 'var(--fs-greeting)', margin: '4px 0 8px' }}>Cucina — menu della settimana</h1>
 
       {week.days.map((day) => (
-        <Card key={day.day_of_week} label={DAY_LABELS[day.day_of_week]}>
+        <Card key={day.day_of_week} label={DAY_LABELS[day.day_of_week]} icon={ChefHat} category="cucina">
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 220 }}>
               <p style={{ margin: '0 0 6px', fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>Scuola</p>

@@ -38,9 +38,10 @@ alembic upgrade head
 ```bash
 cd frontend
 npm install
-cp .env.example .env   # VITE_API_BASE_URL, default http://localhost:8000
 npm run dev
 ```
+
+Il dev server proxya automaticamente `/api` verso `http://localhost:8000` (vedi `vite.config.ts`): non serve creare un `.env` a meno di voler puntare a un backend diverso (`frontend/.env.example`).
 
 ## Deploy sul NUC
 
