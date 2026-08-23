@@ -30,8 +30,10 @@ Senza credenziali configurate in `.env`, gli adapter (Google Calendar, Bring!, h
 Migrazioni schema (`homehub`):
 
 ```bash
-alembic upgrade head
+python -m alembic upgrade head
 ```
+
+(usa `python -m alembic`, non `alembic` da solo — vedi la nota in DEPLOY.md sui conflitti con un eventuale `alembic` di sistema)
 
 ### Frontend
 

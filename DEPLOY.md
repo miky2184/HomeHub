@@ -36,10 +36,12 @@ Dal NUC (o da qualunque macchina che raggiunge il Postgres), con un Python local
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-alembic upgrade head
+python -m alembic upgrade head
 ```
 
 Questo crea lo schema `homehub` e le tabelle `school_menu` / `training_plan` / `app_config`. Senza questo passaggio, la Home risponderà con errore (dipende dal Postgres per il menu scolastico e il prossimo allenamento — vedi ARCHITECTURE.md §7.1).
+
+> **Nota**: usa sempre `python -m alembic ...` e non `alembic ...` da solo. Su alcune distribuzioni (Debian/Ubuntu) esiste un pacchetto di sistema `python3-alembic` che finisce prima nel `PATH` anche a venv attivo — `alembic` da solo lo invocherebbe, fallendo con `ModuleNotFoundError: pydantic_settings` perché quell'alembic di sistema non vede i pacchetti del venv. `python -m alembic` usa sempre l'interprete del venv attivo e non ha questo problema.
 
 ## 4. Generare le credenziali Basic Auth (`frontend/.htpasswd`)
 
