@@ -34,6 +34,11 @@ export function Rail() {
         padding: '20px 0',
       }}
     >
+      <img
+        src="/logo-mark.png"
+        alt="HomeHub"
+        style={{ width: 44, height: 44, borderRadius: 'var(--radius-control)', marginBottom: 6 }}
+      />
       {TABS.map(({ to, label, Icon }) => (
         <NavLink
           key={to}
