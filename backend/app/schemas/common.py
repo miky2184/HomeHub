@@ -16,6 +16,11 @@ class CalendarEvent(BaseModel):
     all_day: bool = False
 
 
+class CalendarInfo(BaseModel):
+    id: str
+    label: str
+
+
 class CalendarEventCreate(BaseModel):
     calendar_id: str
     title: str

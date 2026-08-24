@@ -72,6 +72,15 @@ class GoogleCalendarAdapter(WritableSourceAdapter):
                 self._calendar_labels[calendar_id] = calendar_id
         return self._calendar_labels[calendar_id]
 
+    async def list_calendars(self) -> list[dict]:
+        """I calendari configurati (GOOGLE_CALENDAR_IDS) con il loro nome
+        visualizzato — usato dal frontend per il selettore nel form "Aggiungi
+        evento" (niente più calendar_id inventati lato client)."""
+        if not self.is_configured:
+            return [{"id": "famiglia", "label": "Famiglia"}]
+        service = self._get_service()
+        return [{"id": cal_id, "label": self._label_for(service, cal_id)} for cal_id in settings.google_calendar_ids]
+
     async def fetch(self) -> list[dict]:
         if not self.is_configured:
             return self._mock_events()

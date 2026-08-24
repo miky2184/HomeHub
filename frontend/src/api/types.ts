@@ -11,6 +11,11 @@ export interface CalendarEvent {
   all_day: boolean
 }
 
+export interface CalendarInfo {
+  id: string
+  label: string
+}
+
 export interface MenuDay {
   day_of_week: number
   school_meal: string | null

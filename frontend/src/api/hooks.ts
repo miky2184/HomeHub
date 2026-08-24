@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type {
   CalendarEvent,
+  CalendarInfo,
   HomeSummary,
   InventoryAlert,
   MenuWeek,
@@ -26,6 +27,14 @@ export function useCalendarEvents() {
     queryKey: ['calendar-events'],
     queryFn: () => api.get<CalendarEvent[]>('/api/calendar/events'),
     refetchInterval: 5 * 60_000,
+  })
+}
+
+export function useCalendars() {
+  return useQuery({
+    queryKey: ['calendars'],
+    queryFn: () => api.get<CalendarInfo[]>('/api/calendar/calendars'),
+    staleTime: 60 * 60_000, // cambiano raramente, niente bisogno di rifetch frequenti
   })
 }
 

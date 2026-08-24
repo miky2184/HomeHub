@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Plus } from 'lucide-react'
 import type { CalendarEvent } from '../api/types'
-import { useAddCalendarEvent, useCalendarEvents } from '../api/hooks'
+import { useAddCalendarEvent, useCalendarEvents, useCalendars } from '../api/hooks'
 import { Card } from '../components/Card'
 import { MonthCalendar } from '../components/MonthCalendar'
 import { DAY_LABELS, getWeekDates, isSameDay, toDateKey } from '../lib/date'
@@ -26,10 +26,16 @@ function EventRow({ event }: { event: CalendarEvent }) {
 
 export function CalendarPage() {
   const { data: events, isLoading } = useCalendarEvents()
+  const { data: calendars } = useCalendars()
   const addEvent = useAddCalendarEvent()
   const [title, setTitle] = useState('')
   const [start, setStart] = useState('')
+  const [calendarId, setCalendarId] = useState('')
   const [selectedDate, setSelectedDate] = useState(() => new Date())
+
+  useEffect(() => {
+    if (!calendarId && calendars && calendars.length > 0) setCalendarId(calendars[0].id)
+  }, [calendars, calendarId])
 
   const sorted = useMemo(() => [...(events ?? [])].sort((a, b) => a.start.localeCompare(b.start)), [events])
 
@@ -48,12 +54,12 @@ export function CalendarPage() {
   const weekDates = useMemo(() => getWeekDates(new Date()), [])
 
   function handleAdd() {
-    if (!title.trim() || !start) return
+    if (!title.trim() || !start || !calendarId) return
     const startDate = new Date(start)
     const endDate = new Date(startDate.getTime() + 60 * 60_000)
     addEvent.mutate(
       {
-        calendar_id: 'famiglia',
+        calendar_id: calendarId,
         title: title.trim(),
         start: startDate.toISOString(),
         end: endDate.toISOString(),
@@ -121,6 +127,15 @@ export function CalendarPage() {
             style={inputStyle}
           />
           <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} style={inputStyle} />
+          {calendars && calendars.length > 1 && (
+            <select value={calendarId} onChange={(e) => setCalendarId(e.target.value)} style={inputStyle}>
+              {calendars.map((cal) => (
+                <option key={cal.id} value={cal.id}>
+                  {cal.label}
+                </option>
+              ))}
+            </select>
+          )}
           <button onClick={handleAdd} style={buttonStyle}>
             Aggiungi
           </button>
