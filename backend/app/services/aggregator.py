@@ -1,6 +1,7 @@
 """Costruisce l'HomeSummary chiamando i vari adapter (con cache) e leggendo le
 tabelle manuali (menu scolastico, allenamenti) dal Postgres dedicato."""
 
+import asyncio
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import select
@@ -46,22 +47,50 @@ async def get_home_meal_today() -> str | None:
     return home_menu_adapter.normalize(raw)
 
 
-async def get_garmin_activities_for_date(day: date) -> list[dict]:
-    """Attività Garmin di un giorno, con cache per evitare di richiamare
-    l'API ad ogni refresh della pagina Allenamenti. Non solleva eccezioni
-    verso il chiamante: se Garmin non è configurato o la chiamata fallisce
-    (sessione scaduta, rete, ecc.), ritorna semplicemente nessuna attività —
-    è un arricchimento opzionale, non deve rompere la pagina."""
+async def _get_garmin_calendar_month(year: int, month: int) -> dict:
+    """Calendario Garmin di un mese (allenamenti pianificati + attività
+    svolte), in cache per evitare di richiamare l'API ad ogni refresh della
+    pagina Allenamenti. Non solleva eccezioni: se Garmin non è configurato o
+    la chiamata fallisce (sessione scaduta, rete, ecc.), ritorna un
+    calendario vuoto — è un arricchimento opzionale, non deve rompere la
+    pagina.
+
+    Nota da un test reale con credenziali sbagliate: la libreria Garmin, in
+    caso di login fallito, ritenta con più metodi/backoff e può restare
+    appesa **oltre un minuto** prima di arrendersi. Senza un timeout qui,
+    un problema Garmin (credenziali scadute, rate limit, rete) bloccherebbe
+    ad ogni refresh l'intera pagina Allenamenti. Timeout duro a 15s + una
+    cache "negativa" di 60s sull'esito fallito, così le richieste successive
+    falliscono subito invece di ritentare Garmin ogni volta."""
     if not garmin_adapter.is_configured:
-        return []
+        return {"calendarItems": []}
+    key = f"garmin_calendar_{year}_{month:02d}"
     try:
-        return await cache.get_or_set(
-            f"garmin_activities_{day.isoformat()}",
-            garmin_adapter.cache_ttl,
-            lambda: garmin_adapter.fetch_activities_for_date(day),
+        return await asyncio.wait_for(
+            cache.get_or_set(
+                key, garmin_adapter.cache_ttl, lambda: asyncio.to_thread(garmin_adapter.fetch_calendar_month, year, month)
+            ),
+            timeout=15,
         )
     except Exception:
-        return []
+        return await cache.get_or_set(key, 60, _empty_calendar)
+
+
+async def _empty_calendar() -> dict:
+    return {"calendarItems": []}
+
+
+async def get_garmin_scheduled_title(day: date) -> str | None:
+    """Titolo dell'allenamento assegnato su Garmin per quel giorno (se
+    l'utente lo ha creato e assegnato lì — vedi docstring in adapters/garmin.py)."""
+    calendar_month = await _get_garmin_calendar_month(day.year, day.month)
+    return GarminAdapter.scheduled_titles_by_date(calendar_month).get(day.isoformat())
+
+
+async def get_garmin_activity_summaries(day: date) -> list[str]:
+    """Riepiloghi delle attività Garmin effettivamente svolte quel giorno."""
+    calendar_month = await _get_garmin_calendar_month(day.year, day.month)
+    return GarminAdapter.activity_summaries_by_date(calendar_month).get(day.isoformat(), [])
 
 
 def get_school_meal_today(db: Session, today: date) -> str | None:

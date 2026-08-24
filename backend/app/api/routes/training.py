@@ -7,40 +7,70 @@ from sqlalchemy.orm import Session
 from app.db.base import get_db
 from app.db.models import TrainingSession as TrainingSessionModel
 from app.schemas.common import TrainingSessionOut, TrainingSessionUpsert
-from app.services.aggregator import get_garmin_activities_for_date
+from app.services.aggregator import get_garmin_activity_summaries, get_garmin_scheduled_title
 
 router = APIRouter(prefix="/api/training", tags=["training"])
 
 
 @router.get("/week", response_model=list[TrainingSessionOut])
 async def get_week_training(week_start_date: date, db: Session = Depends(get_db)) -> list[TrainingSessionOut]:
-    sessions = db.scalars(
-        select(TrainingSessionModel).where(TrainingSessionModel.week_start_date == week_start_date)
-    ).all()
+    """Il piano della settimana viene letto prima di tutto da Garmin Connect
+    (dove l'utente assegna gli allenamenti ai giorni): se Garmin ha un
+    allenamento pianificato per un giorno, il suo titolo sostituisce/crea la
+    sessione salvata in Postgres. L'inserimento manuale resta un fallback
+    per i giorni senza nulla di assegnato su Garmin (o se Garmin non è
+    configurato) — vedi ARCHITECTURE.md e la docstring di adapters/garmin.py."""
+    existing = {
+        s.day_of_week: s
+        for s in db.scalars(
+            select(TrainingSessionModel).where(TrainingSessionModel.week_start_date == week_start_date)
+        ).all()
+    }
 
     today = date.today()
     results: list[TrainingSessionOut] = []
-    for s in sessions:
-        session_date = week_start_date + timedelta(days=s.day_of_week)
-        garmin_note = None
 
-        # Ha senso controllare Garmin solo per giorni già passati (o oggi):
-        # il futuro non ha ancora attività registrate.
+    for day_of_week in range(7):
+        session_date = week_start_date + timedelta(days=day_of_week)
+        session = existing.get(day_of_week)
+
+        garmin_title = await get_garmin_scheduled_title(session_date)
+        if garmin_title:
+            if session is None:
+                session = TrainingSessionModel(
+                    week_start_date=week_start_date,
+                    day_of_week=day_of_week,
+                    session_text=garmin_title,
+                    done=False,
+                )
+                db.add(session)
+                db.commit()
+                db.refresh(session)
+            elif session.session_text != garmin_title:
+                session.session_text = garmin_title
+                db.commit()
+
+        if session is None:
+            continue  # nessun piano, né da Garmin né manuale, per questo giorno
+
+        garmin_note = None
+        # Ha senso controllare le attività svolte solo per giorni già
+        # passati (o oggi): il futuro non ne ha ancora.
         if session_date <= today:
-            activities = await get_garmin_activities_for_date(session_date)
-            if activities:
-                garmin_note = activities[0]["summary"]
-                if not s.done:
-                    s.done = True
+            summaries = await get_garmin_activity_summaries(session_date)
+            if summaries:
+                garmin_note = "; ".join(summaries)
+                if not session.done:
+                    session.done = True
                     db.commit()
 
         results.append(
             TrainingSessionOut(
-                id=s.id,
-                week_start_date=s.week_start_date,
-                day_of_week=s.day_of_week,
-                session_text=s.session_text,
-                done=s.done,
+                id=session.id,
+                week_start_date=session.week_start_date,
+                day_of_week=session.day_of_week,
+                session_text=session.session_text,
+                done=session.done,
                 garmin_note=garmin_note,
             )
         )

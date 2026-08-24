@@ -21,7 +21,7 @@
 | Persistenza | **PostgreSQL già disponibile** (istanza esistente), con **schema dedicato `homehub`** (confermato) per dati manuali (menu, allenamenti), cache e config, separato dalle tabelle delle altre app |
 | Backend stack | **Python + FastAPI** (coerente con lo stack delle 3 web app esistenti, tutte in Python) |
 | Monitor | Arzopa, risoluzione **1080×1920** (verticale) — usata come riferimento per griglia/breakpoint del frontend |
-| Allenamenti | Comunicati settimanalmente dal coach via WhatsApp → **inserimento manuale** in una tab dedicata; ✅ integrato anche il confronto automatico con Garmin Connect (se quel giorno c'è un'attività registrata, la sessione pianificata viene marcata "fatta" da sola) — vedi `backend/app/adapters/garmin.py` |
+| Allenamenti | Comunicati dal coach via WhatsApp → l'utente li crea e li assegna ai giorni **direttamente su Garmin Connect** (non più inserimento manuale in HomeHub come ipotizzato all'inizio); ✅ HomeHub legge il piano da lì e auto-marca "fatto" quando trova un'attività svolta quel giorno — l'inserimento manuale resta solo come fallback per i giorni senza nulla su Garmin — vedi `backend/app/adapters/garmin.py` |
 | Lettura vs scrittura | La dashboard **non è di sola lettura**: deve permettere azioni (spuntare/aggiungere articoli Bring!, aggiungere eventi calendario, segnare consumi in inventory, inserire/modificare menu e allenamenti, ecc.) |
 | Multi-utente | **No**: vista unica e condivisa per tutta la famiglia, nessun login/logout — chi guarda il monitor vede/agisce direttamente, senza switch di utenza |
 | API non ufficiali | Va bene usarle in generale (non solo per Bring!), tenendo presente il rischio di breaking change e isolandole dietro gli adapter del backend |
