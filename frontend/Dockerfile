@@ -3,8 +3,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-ARG VITE_API_BASE_URL=http://localhost:8000
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# Nessun VITE_API_BASE_URL qui di proposito: senza, il frontend chiama /api
+# in same-origin (vedi src/api/client.ts) e nginx fa da reverse proxy verso
+# il backend (nginx.conf) — funziona identico sia da localhost sul NUC sia
+# da IP LAN sia da DDNS, senza dover ricompilare per ogni caso.
 RUN npm run build
 
 FROM nginx:alpine
