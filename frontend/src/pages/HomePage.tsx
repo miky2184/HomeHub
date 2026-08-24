@@ -1,4 +1,4 @@
-import { CalendarDays, ChefHat, Dumbbell, House, ShoppingBasket } from 'lucide-react'
+import { CalendarDays, CheckSquare, ChefHat, Dumbbell, House, ShoppingBasket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { HomeMeals } from '../api/types'
 import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem } from '../api/hooks'
@@ -9,6 +9,7 @@ import { getGreeting } from '../config'
 import { useClock } from '../hooks/useClock'
 import { inferEventIcon } from '../lib/eventIcon'
 import { currentWeekStart, toDateKey } from '../lib/date'
+import { dueDateInfo, PRIORITY_META } from '../lib/todo'
 import { CATEGORY_COLORS } from '../styles/categories'
 
 // Ordine cronologico della giornata: la figlia pranza a scuola (school_meal,
@@ -76,35 +77,76 @@ export function HomePage() {
 
       {data.weather && <WeatherCard weather={data.weather} />}
 
-      <Card
-        label="Oggi"
-        icon={CalendarDays}
-        category="agenda"
-        footerLabel="Vedi tutti gli eventi"
-        onFooterClick={() => navigate('/calendario')}
-      >
-        {data.today_events.length === 0 ? (
-          <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-secondary)' }}>
-            Nessun evento in programma
-          </p>
-        ) : (
-          data.today_events.map((event) => {
-            const { Icon, category } = inferEventIcon(event.title)
-            const colors = CATEGORY_COLORS[category]
-            return (
-              <div key={event.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ width: 30, height: 30, borderRadius: '50%', background: colors.bg, color: colors.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon size={16} />
-                </span>
-                <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-secondary)', width: 56, flexShrink: 0 }}>
-                  {new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit' }).format(new Date(event.start))}
-                </span>
-                <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600 }}>{event.title}</span>
-              </div>
-            )
-          })
-        )}
-      </Card>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--gap-md)' }}>
+        <Card
+          label="Oggi"
+          icon={CalendarDays}
+          category="agenda"
+          footerLabel="Vedi tutti gli eventi"
+          onFooterClick={() => navigate('/calendario')}
+        >
+          {data.today_events.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-secondary)' }}>
+              Nessun evento in programma
+            </p>
+          ) : (
+            data.today_events.map((event) => {
+              const { Icon, category } = inferEventIcon(event.title)
+              const colors = CATEGORY_COLORS[category]
+              return (
+                <div key={event.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ width: 30, height: 30, borderRadius: '50%', background: colors.bg, color: colors.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon size={16} />
+                  </span>
+                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-secondary)', width: 56, flexShrink: 0 }}>
+                    {new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit' }).format(new Date(event.start))}
+                  </span>
+                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600 }}>{event.title}</span>
+                </div>
+              )
+            })
+          )}
+        </Card>
+
+        <Card
+          label={`Da fare · ${data.todos.pending_count}`}
+          icon={CheckSquare}
+          category="todo"
+          footerLabel="Vedi tutti"
+          onFooterClick={() => navigate('/todo')}
+        >
+          {data.todos.top.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-secondary)' }}>
+              Nessun todo da fare
+            </p>
+          ) : (
+            data.todos.top.map((todo) => {
+              const due = dueDateInfo(todo.due_date)
+              const priority = PRIORITY_META[todo.priority]
+              return (
+                <div key={todo.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: priority.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600, flex: 1, minWidth: 0 }}>
+                    {todo.title}
+                  </span>
+                  {due && (
+                    <span
+                      style={{
+                        fontSize: 'var(--fs-label)',
+                        fontWeight: due.overdue ? 700 : 400,
+                        color: due.overdue ? 'var(--danger)' : 'var(--text-muted)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {due.label}
+                    </span>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </Card>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--gap-md)' }}>
         <Card

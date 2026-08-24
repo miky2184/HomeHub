@@ -2,6 +2,7 @@
 dalla fonte reale (Google, Bring!, le web app esistenti, o le tabelle manuali)."""
 
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -169,6 +170,39 @@ class WeatherSnapshot(BaseModel):
     precipitation_alert: str | None = None  # es. "Possibile pioggia più tardi"
 
 
+class TodoItemOut(BaseModel):
+    id: int
+    title: str
+    assignee: str | None = None  # etichetta libera ("per chi"), non un vero utente/login
+    priority: Literal["alta", "media", "bassa"] = "media"
+    due_date: date | None = None
+    done: bool = False
+    created_at: datetime
+
+
+class TodoItemCreate(BaseModel):
+    title: str
+    assignee: str | None = None
+    priority: Literal["alta", "media", "bassa"] = "media"
+    due_date: date | None = None
+
+
+class TodoItemUpdate(BaseModel):
+    """Tutti i campi opzionali: PATCH parziale (usato sia dal form di
+    modifica sia dal semplice toggle "fatto")."""
+
+    title: str | None = None
+    assignee: str | None = None
+    priority: Literal["alta", "media", "bassa"] | None = None
+    due_date: date | None = None
+    done: bool | None = None
+
+
+class TodoSummary(BaseModel):
+    pending_count: int
+    top: list[TodoItemOut]  # prime 3 per priorità/scadenza, solo non fatti
+
+
 class HomeSummary(BaseModel):
     now: datetime
     weather: WeatherSnapshot | None = None
@@ -180,3 +214,4 @@ class HomeSummary(BaseModel):
     shopping_preview: list[ShoppingItem]
     shopping_total_count: int
     inventory_alerts: list[InventoryAlert]
+    todos: TodoSummary

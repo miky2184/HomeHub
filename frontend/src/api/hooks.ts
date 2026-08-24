@@ -11,6 +11,8 @@ import type {
   SchoolMenuTemplateEntry,
   ShoppingItem,
   SnackTemplateEntry,
+  TodoItem,
+  TodoItemInput,
   TrainingActivityDetail,
   TrainingSession,
 } from './types'
@@ -189,5 +191,47 @@ export function useInventoryAlerts() {
     queryKey: ['inventory-alerts'],
     queryFn: () => api.get<InventoryAlert[]>('/api/inventory/alerts'),
     refetchInterval: 15 * 60_000,
+  })
+}
+
+// --- Todo ---
+
+export function useTodos(includeDone = true) {
+  return useQuery({
+    queryKey: ['todos', includeDone],
+    queryFn: () => api.get<TodoItem[]>(`/api/todos?include_done=${includeDone}`),
+  })
+}
+
+function useInvalidateTodos() {
+  const queryClient = useQueryClient()
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ['todos'] })
+    queryClient.invalidateQueries({ queryKey: ['home-summary'] })
+  }
+}
+
+export function useCreateTodo() {
+  const invalidate = useInvalidateTodos()
+  return useMutation({
+    mutationFn: (payload: TodoItemInput) => api.post<TodoItem>('/api/todos', payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateTodo() {
+  const invalidate = useInvalidateTodos()
+  return useMutation({
+    mutationFn: ({ id, ...payload }: { id: number } & Partial<TodoItemInput & { done: boolean }>) =>
+      api.patch<TodoItem>(`/api/todos/${id}`, payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteTodo() {
+  const invalidate = useInvalidateTodos()
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/api/todos/${id}`),
+    onSuccess: invalidate,
   })
 }

@@ -49,9 +49,9 @@ pip install -r requirements.txt
 python -m alembic upgrade head
 ```
 
-Questo crea lo schema `homehub` e le tabelle `training_plan` / `app_config` / `school_menu_template` / `school_menu_cycle_anchor` / `snack_template`. Senza questo passaggio, la Home risponderà con errore (dipende dal Postgres per il menu scolastico e il prossimo allenamento — vedi ARCHITECTURE.md §7.1).
+Questo crea lo schema `homehub` e le tabelle `training_plan` / `app_config` / `school_menu_template` / `school_menu_cycle_anchor` / `snack_template` / `todo_item`. Senza questo passaggio, la Home risponderà con errore (dipende dal Postgres per il menu scolastico e il prossimo allenamento — vedi ARCHITECTURE.md §7.1).
 
-> **Nota se avevi già eseguito le migrazioni prima del 24/08/2026**: la migrazione `0002` sostituisce la vecchia tabella `school_menu` (mai popolata con dati reali) con il nuovo modello a rotazione di 4 settimane — è un `DROP TABLE` sicuro solo perché non c'era nulla dentro. Dopo `alembic upgrade head`, compila il menu scuola e le merende da Impostazioni (non più da Cucina, che ora è sola lettura).
+> **Nota se avevi già eseguito le migrazioni prima del 24/08/2026**: la migrazione `0002` sostituisce la vecchia tabella `school_menu` (mai popolata con dati reali) con il nuovo modello a rotazione di 4 settimane — è un `DROP TABLE` sicuro solo perché non c'era nulla dentro. Dopo `alembic upgrade head`, compila il menu scuola e le merende da Impostazioni (non più da Cucina, che ora è sola lettura). La migrazione `0003` aggiunge solo la tabella `todo_item` (nuova, nessun impatto sulle altre).
 
 > **Nota**: usa sempre `python -m alembic ...` e non `alembic ...` da solo. Su alcune distribuzioni (Debian/Ubuntu) esiste un pacchetto di sistema `python3-alembic` che finisce prima nel `PATH` anche a venv attivo — `alembic` da solo lo invocherebbe, fallendo con `ModuleNotFoundError: pydantic_settings` perché quell'alembic di sistema non vede i pacchetti del venv. `python -m alembic` usa sempre l'interprete del venv attivo e non ha questo problema.
 

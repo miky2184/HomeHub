@@ -140,6 +140,7 @@ Note di design:
 | **Spesa (Bring!)** | Lista della spesa condivisa, con possibilità di spuntare/aggiungere articoli | Bring! API (non ufficiale, via backend) |
 | **Home Inventory** | ✅ **Sola lettura**: oggetti scaduti o in scadenza entro 7gg (stessa soglia "warning" della web app dedicata), con contenitore associato. Gestione (creare/modificare/consumare/quantità) resta nella web app `home_inventory_web` | Lettura diretta dello schema Postgres `home_inventory` (stesso Postgres di homehub, altra web app dell'utente — niente API REST, come per `dieta.allenamento`) — vedi `backend/app/db/home_inventory_models.py` |
 | **Finanze** *(opzionale)* | Riepilogo/situazione finanziaria | API della web app finanze esistente |
+| **Todo** | ✅ Todo list condivisa di famiglia (no multi-utente/login): titolo, priorità (alta/media/bassa), scadenza opzionale, "per chi" (etichetta libera, non un vero assegnatario). CRUD completo nel tab; in Home una card mostra il conteggio degli aperti + i primi 3 per priorità/scadenza | Tabella propria `homehub.todo_item` — vedi `backend/app/db/models.py:TodoItem` e `backend/app/api/routes/todo.py` |
 
 ## 6. Azioni supportate dalla dashboard (non solo lettura)
 
@@ -153,6 +154,7 @@ La dashboard deve poter scrivere, non solo mostrare. Elenco (non esaustivo) dell
 | Spesa (Bring!) | Spuntare articoli come presi, aggiungere nuovi articoli, rimuovere articoli |
 | Home Inventory | Nessuna (tab di sola lettura, scelta esplicita): consumo/scarico/quantità restano nella web app `home_inventory_web` dedicata, per non rischiare scritture sbagliate sul suo DB da codice nuovo |
 | Finanze *(opzionale)* | Dipende da cosa espone già l'app finanze esistente (es. registrare una spesa rapida) |
+| Todo | CRUD completo: creare, modificare (titolo/priorità/scadenza/assegnatario), segnare come fatto, eliminare (con conferma) |
 
 Implicazioni di design:
 - Ogni azione passa dal backend aggregatore, che la inoltra alla fonte giusta (Google Calendar, Bring!, Postgres per i dati manuali, o l'API della web app esistente) e poi invalida/aggiorna la cache così la UI si aggiorna in modo coerente (via refetch di TanStack Query, eventualmente SSE per notificare cambi fatti da altri dispositivi, es. l'app Bring! sul telefono).
@@ -176,6 +178,7 @@ Implicazioni di design:
 Tabelle indicative nello schema dedicato `homehub`:
 - `school_menu(id, week_start_date, day_of_week, meal_text, created_at, updated_at)`
 - `training_plan(id, week_start_date, day_of_week, session_text, done boolean, created_at, updated_at)`
+- `todo_item(id, title, assignee, priority, due_date, done boolean, created_at, updated_at)` — vedi migrazione `0003_todo.py`
 - `cache_entries(source, key, payload jsonb, fetched_at)` *(opzionale, se si preferisce cache persistente a cache in memoria)*
 - `app_config(key, value)` *(config runtime non sensibile; i secret restano in `.env`, non a DB)*
 
@@ -214,6 +217,7 @@ Ogni integrazione esterna è isolata in un modulo/adapter con la stessa interfac
 - **Fase 1 — Backend base**: skeleton BFF ✅, connessione al Postgres esistente (schema `homehub`) ✅, integrazione Google Calendar (lettura + aggiunta evento) ✅ *(vedi `backend/app/adapters/google_calendar.py`)*, Home con card calendario reali ✅, meteo ✅ *(Open-Meteo, gratuita e senza chiave, vedi `backend/app/adapters/weather.py`)*.
 - **Fase 2 — Menu & Allenamenti**: ✅ fatto. Tab Menu con template scuola/merende a rotazione (data entry in Impostazioni) + ✅ tutti i pasti di casa (colazione/spuntini/pranzo/cena) letti da `dieta.menu_settimanale`; tab Allenamenti da Garmin Connect + `dieta.allenamento`.
 - **Fase 3 — Spesa & Inventory**: ✅ fatto. Bring! (lettura + spunta/aggiunta/rimozione articoli, vedi `backend/app/adapters/bring.py`); home inventory in sola lettura, alert oggetti scaduti/in scadenza entro 7gg letti direttamente dallo schema Postgres `home_inventory` (vedi `backend/app/db/home_inventory_models.py`), niente azioni di scrittura (gestione lasciata alla web app dedicata).
+- **Fase 3.1 — Todo list**: ✅ fatto. Todo list condivisa di famiglia con priorità/scadenza/assegnatario libero, CRUD completo nel tab dedicato, card riepilogo in Home — vedi `backend/app/api/routes/todo.py` e `frontend/src/pages/TodoPage.tsx`.
 - **Fase 4 — Finanze (opzionale) & rifiniture azioni**: tab finanze se utile, revisione UX delle azioni di scrittura (conferme, feedback visivo, gestione errori di rete verso le fonti esterne).
 - **Fase 5 — Polish & go-live**: idle/attract mode, gestione errori/offline dei singoli adapter, dismissione MagicMirror, deploy definitivo systemd+Docker sul NUC.
 - **Fase 6 — Estensioni future**: sync automatico allenamenti da Garmin Connect ✅ *(fatto, vedi sopra)*, SSE per aggiornamenti push multi-dispositivo, altri moduli.

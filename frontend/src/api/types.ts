@@ -122,6 +122,30 @@ export interface WeatherSnapshot {
   precipitation_alert: string | null
 }
 
+export type TodoPriority = 'alta' | 'media' | 'bassa'
+
+export interface TodoItem {
+  id: number
+  title: string
+  assignee: string | null
+  priority: TodoPriority
+  due_date: string | null
+  done: boolean
+  created_at: string
+}
+
+export interface TodoItemInput {
+  title: string
+  assignee: string | null
+  priority: TodoPriority
+  due_date: string | null
+}
+
+export interface TodoSummary {
+  pending_count: number
+  top: TodoItem[]
+}
+
 export interface HomeSummary {
   now: string
   weather: WeatherSnapshot | null
@@ -133,4 +157,5 @@ export interface HomeSummary {
   shopping_preview: ShoppingItem[]
   shopping_total_count: number
   inventory_alerts: InventoryAlert[]
+  todos: TodoSummary
 }

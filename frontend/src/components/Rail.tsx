@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Calendar, Home, House, Settings, ShoppingCart, SoupIcon, Wallet, Dumbbell } from 'lucide-react'
+import { Calendar, CheckSquare, Home, House, Settings, ShoppingCart, SoupIcon, Wallet, Dumbbell } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { CATEGORY_COLORS, type Category } from '../styles/categories'
 
@@ -13,6 +13,7 @@ interface Tab {
 const TABS: Tab[] = [
   { to: '/', label: 'Home', Icon: Home, category: 'home' },
   { to: '/calendario', label: 'Agenda', Icon: Calendar, category: 'agenda' },
+  { to: '/todo', label: 'Todo', Icon: CheckSquare, category: 'todo' },
   { to: '/menu', label: 'Cucina', Icon: SoupIcon, category: 'cucina' },
   { to: '/allenamenti', label: 'Attività', Icon: Dumbbell, category: 'attivita' },
   { to: '/spesa', label: 'Spesa', Icon: ShoppingCart, category: 'spesa' },

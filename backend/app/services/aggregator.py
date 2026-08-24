@@ -19,6 +19,7 @@ from app.db.models import (
     SchoolMenuCycleAnchor,
     SchoolMenuTemplateEntry,
     SnackTemplateEntry,
+    TodoItem,
     TrainingSession as TrainingSessionModel,
 )
 from app.schemas.common import (
@@ -27,6 +28,8 @@ from app.schemas.common import (
     HourlyForecast,
     InventoryAlert,
     MenuDay,
+    TodoItemOut,
+    TodoSummary,
     TrainingActivityDetail,
     TrainingSessionOut,
     WeatherSnapshot,
@@ -101,6 +104,40 @@ def get_inventory_alerts(db: Session, today: date) -> list[InventoryAlert]:
             )
         )
     return alerts
+
+
+TODO_PRIORITY_ORDER = {"alta": 0, "media": 1, "bassa": 2}
+
+
+def sort_todos(items: list[TodoItem]) -> list[TodoItem]:
+    """Priorità (alta→bassa), poi scadenza più vicina (chi non ne ha una
+    resta in fondo), poi data di creazione — stesso ordine ovunque (tab
+    Todo e top 3 in Home)."""
+    return sorted(
+        items,
+        key=lambda i: (TODO_PRIORITY_ORDER.get(i.priority, 1), i.due_date or date.max, i.created_at),
+    )
+
+
+def todo_item_out(item: TodoItem) -> TodoItemOut:
+    return TodoItemOut(
+        id=item.id,
+        title=item.title,
+        assignee=item.assignee,
+        priority=item.priority,
+        due_date=item.due_date,
+        done=item.done,
+        created_at=item.created_at,
+    )
+
+
+def get_todo_summary(db: Session) -> TodoSummary:
+    """Conteggio dei todo aperti + i primi 3 per priorità/scadenza, per la
+    card 'Da fare' in Home. I todo completati non contano e non compaiono
+    qui (restano visibili nel tab Todo completo)."""
+    pending = [i for i in db.scalars(select(TodoItem)).all() if not i.done]
+    top = sort_todos(pending)[:3]
+    return TodoSummary(pending_count=len(pending), top=[todo_item_out(i) for i in top])
 
 
 # Chiavi pasto nel jsonb di dieta.menu_settimanale → campo HomeMeals
@@ -366,6 +403,7 @@ async def build_home_summary(db: Session) -> HomeSummary:
     unchecked = [i for i in shopping_items if not i.checked]
 
     inventory_alerts = get_inventory_alerts(db, today)
+    todos = get_todo_summary(db)
 
     menu_day = await build_menu_day(db, effective_menu_date(now))
     today_menu = (
@@ -396,4 +434,5 @@ async def build_home_summary(db: Session) -> HomeSummary:
         shopping_preview=unchecked[:4],
         shopping_total_count=len(shopping_items),
         inventory_alerts=inventory_alerts,
+        todos=todos,
     )

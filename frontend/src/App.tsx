@@ -8,6 +8,7 @@ import { InventoryPage } from './pages/InventoryPage'
 import { MenuPage } from './pages/MenuPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ShoppingPage } from './pages/ShoppingPage'
+import { TodoPage } from './pages/TodoPage'
 import { TrainingPage } from './pages/TrainingPage'
 
 const queryClient = new QueryClient({
@@ -22,6 +23,7 @@ function App() {
           <Route element={<AppLayout />}>
             <Route index element={<HomePage />} />
             <Route path="calendario" element={<CalendarPage />} />
+            <Route path="todo" element={<TodoPage />} />
             <Route path="menu" element={<MenuPage />} />
             <Route path="allenamenti" element={<TrainingPage />} />
             <Route path="spesa" element={<ShoppingPage />} />
