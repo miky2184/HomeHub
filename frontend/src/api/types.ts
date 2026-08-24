@@ -158,7 +158,7 @@ export interface FinanceCategoryStatus {
 
 export interface UpcomingExpense {
   beneficiario: string | null
-  due_date: string
+  period: string // già formattato dal backend, es. "Settembre 2026"
 }
 
 export interface FinanceSummary {

@@ -214,11 +214,14 @@ class FinanceCategoryStatus(BaseModel):
 
 
 class UpcomingExpense(BaseModel):
-    """Movimento pianificato non ancora contabilizzato (tipo_conto=0, uscita).
-    Mai l'importo — solo chi/quando, per un promemoria al colpo d'occhio."""
+    """Da /dare_avere (python-finanze-api): un aggregato per beneficiario,
+    non un singolo movimento con una data precisa — "period" è già un
+    testo pronto ("Settembre 2026", o "Settembre–Novembre 2026" se
+    ricorre su più mesi). Mai l'importo — solo chi/quando, per un
+    promemoria al colpo d'occhio (vedi app/adapters/finance.py)."""
 
     beneficiario: str | None = None
-    due_date: date
+    period: str
 
 
 class FinanceSummary(BaseModel):

@@ -1,5 +1,5 @@
 import type { FinanceSummary } from '../api/types'
-import { ALERT_COLOR, formatUpcomingDate } from '../lib/finance'
+import { ALERT_COLOR } from '../lib/finance'
 
 interface FinanceSummaryContentProps {
   finance: FinanceSummary
@@ -60,7 +60,7 @@ export function FinanceSummaryContent({ finance, maxCategories, maxUpcoming }: F
               style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 'var(--fs-label)' }}
             >
               <span style={{ color: 'var(--text-primary)' }}>{exp.beneficiario ?? 'Movimento pianificato'}</span>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{formatUpcomingDate(exp.due_date)}</span>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{exp.period}</span>
             </div>
           ))}
         </div>

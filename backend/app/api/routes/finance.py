@@ -1,5 +1,3 @@
-from datetime import date
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -16,4 +14,4 @@ async def finance_summary(db: Session = Depends(get_db)) -> FinanceSummary | Non
     configurata — il frontend nasconde la sezione in quel caso, non mostra
     un errore. Sola lettura, mai importi assoluti (vedi
     app/adapters/finance.py)."""
-    return await get_finance_summary(db, date.today())
+    return await get_finance_summary(db)

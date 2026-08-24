@@ -8,14 +8,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.adapters.bring import BringAdapter
-from app.adapters.finance import FinanceAdapter
+from app.adapters.finance import FinanceAdapter, parse_upcoming_expenses
 from app.adapters.garmin import GarminAdapter
 from app.adapters.google_calendar import GoogleCalendarAdapter
 from app.adapters.santo_del_giorno import fetch_saint_of_day
 from app.adapters.weather import condition_label, fetch_weather_snapshot, geocode_city, parse_hourly, precipitation_alert
 from app.core.config import get_settings
 from app.db.dieta_models import GIORNI_SETTIMANA_IT, allenamento_table, menu_settimanale_table
-from app.db.finance_models import beneficiario_table, finance_table
 from app.db.home_inventory_models import containers_table, items_table
 from app.db.models import (
     AppConfig,
@@ -34,7 +33,6 @@ from app.schemas.common import (
     MenuDay,
     TodoItemOut,
     TodoSummary,
-    UpcomingExpense,
     TrainingActivityDetail,
     TrainingSessionOut,
     WeatherSnapshot,
@@ -54,7 +52,6 @@ garmin_adapter = GarminAdapter()
 finance_adapter = FinanceAdapter()
 
 GUEST_MODE_CONFIG_KEY = "guest_mode"
-UPCOMING_EXPENSES_DAYS = 14
 
 # Soglia per gli alert di scadenza in Home: solo scaduti o in scadenza entro
 # questi giorni (stessa soglia "warning" del frontend di home_inventory_web,
@@ -170,39 +167,15 @@ def set_guest_mode(db: Session, enabled: bool) -> bool:
     return enabled
 
 
-def get_upcoming_expenses(db: Session, today: date) -> list[UpcomingExpense]:
-    """Uscite pianificate non ancora contabilizzate (tipo_conto=0 = "da
-    avere" in quell'app, value negativo = uscita — le entrate con
-    tipo_conto=0 vengono escluse) nei prossimi UPCOMING_EXPENSES_DAYS
-    giorni. Legge SOLO beneficiario+data, MAI l'importo — vedi
-    app/db/finance_models.py. Lista vuota se FINANCE_* non configurate o
-    in caso di errore (widget decorativo, non deve mai rompere la Home)."""
-    if not finance_adapter.is_configured:
-        return []
-    try:
-        rows = db.execute(
-            select(finance_table.c.data_val, beneficiario_table.c.descrizione)
-            .select_from(
-                finance_table.outerjoin(beneficiario_table, finance_table.c.beneficiario == beneficiario_table.c.id)
-            )
-            .where(
-                finance_table.c.tipo_conto == 0,
-                finance_table.c.value < 0,
-                finance_table.c.data_val >= today,
-                finance_table.c.data_val <= today + timedelta(days=UPCOMING_EXPENSES_DAYS),
-            )
-            .order_by(finance_table.c.data_val.asc())
-            .limit(5)
-        ).all()
-        return [UpcomingExpense(beneficiario=row.descrizione, due_date=row.data_val) for row in rows]
-    except Exception:
-        return []
-
-
-async def get_finance_summary(db: Session, today: date) -> FinanceSummary | None:
+async def get_finance_summary(db: Session) -> FinanceSummary | None:
     """None se la modalità ospiti è attiva o l'integrazione non è
     configurata: in quel caso la Home/il tab Finanze non mostrano proprio
-    la sezione, non solo dati vuoti."""
+    la sezione, non solo dati vuoti. Sola lettura via API della web app
+    finanze (mai una query diretta su home.finance: /dare_avere e
+    /budget-forecast-all hanno già tutta la logica di business — vedi
+    app/adapters/finance.py). Ogni fetch è isolato: se una delle due fonti
+    fallisce, l'altra continua a funzionare invece di rompere l'intera
+    card (widget decorativo, non deve mai rompere la Home)."""
     if get_guest_mode(db) or not finance_adapter.is_configured:
         return None
     try:
@@ -210,7 +183,14 @@ async def get_finance_summary(db: Session, today: date) -> FinanceSummary | None
         categories = finance_adapter.normalize(raw)
     except Exception:
         categories = []
-    return FinanceSummary(categories=categories, upcoming_expenses=get_upcoming_expenses(db, today))
+    try:
+        dare_avere_raw = await cache.get_or_set(
+            "finance_dare_avere", finance_adapter.cache_ttl, finance_adapter.fetch_dare_avere
+        )
+        upcoming_expenses = parse_upcoming_expenses(dare_avere_raw)
+    except Exception:
+        upcoming_expenses = []
+    return FinanceSummary(categories=categories, upcoming_expenses=upcoming_expenses)
 
 
 # Chiavi pasto nel jsonb di dieta.menu_settimanale → campo HomeMeals
@@ -496,7 +476,7 @@ async def build_home_summary(db: Session) -> HomeSummary:
     saint_of_day = await get_saint_of_day(today)
     weather = await get_weather()
     guest_mode = get_guest_mode(db)
-    finance = await get_finance_summary(db, today)
+    finance = await get_finance_summary(db)
 
     return HomeSummary(
         now=now,
