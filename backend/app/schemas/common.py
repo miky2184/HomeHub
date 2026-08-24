@@ -52,7 +52,27 @@ class TrainingSessionOut(BaseModel):
     day_of_week: int
     session_text: str
     done: bool
-    garmin_note: str | None = None  # es. "Corsa · 8.2 km · 42 min", se Garmin è configurato
+    garmin_note: str | None = None  # es. "Corsa · 8.2 km · 42 min", se svolta (da dieta.allenamento)
+
+
+class TrainingActivityDetail(BaseModel):
+    """Dettaglio di un allenamento svolto, da dieta.allenamento (sincronizzata
+    da un'altra web app dell'utente con dati più ricchi della sola API Garmin)."""
+
+    data: date
+    tipo: str | None = None
+    titolo: str | None = None
+    distanza_m: float | None = None
+    durata_sec: int | None = None
+    calorie: int | None = None
+    fc_media: int | None = None
+    fc_max: int | None = None
+    te_aerobico: float | None = None
+    passo_sec: int | None = None
+    cadenza: int | None = None
+    tss: float | None = None
+    ascesa_m: int | None = None
+    swolf: float | None = None
 
 
 class TrainingSessionUpsert(BaseModel):

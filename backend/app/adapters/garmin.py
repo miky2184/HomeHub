@@ -4,19 +4,20 @@ ufficiale `garminconnect` (https://pypi.org/project/garminconnect/).
 Workflow reale dell'utente (non quello ipotizzato inizialmente): il coach
 manda gli allenamenti via WhatsApp, l'utente li **crea e li assegna ai
 giorni direttamente su Garmin Connect** (calendario "Allenamenti"). Quindi
-Garmin stesso è la fonte del piano, non un inserimento manuale in HomeHub:
-- `client.get_scheduled_workouts(year, month)` ritorna, per un mese, sia gli
-  allenamenti pianificati (`itemType: "workout"`, con `title`/`date`) sia le
-  attività già svolte (`itemType: "activity"`) — un'unica chiamata copre
-  entrambe le cose, verificata con dati reali (non documentazione, che per
-  questo endpoint non ufficiale non esiste in modo affidabile):
-  - `distance` è in **centimetri**, `duration` in **millisecondi** per gli
-    item di tipo "activity" (verificato confrontando i valori con le distanze/
-    durate reali delle attività: es. una nuotata di ~510m dava
-    distance=51371).
+Garmin stesso è la fonte del piano *pianificato*, non un inserimento manuale
+in HomeHub:
+- `client.get_scheduled_workouts(year, month)` ritorna, per un mese, gli
+  allenamenti pianificati (`itemType: "workout"`, con `title`/`date`).
 - Il piano scritto a mano in app.db.models.TrainingSession resta come
   fallback per i giorni senza un allenamento assegnato su Garmin (o se
   Garmin non è configurato): non è stato rimosso, solo reso secondario.
+
+Gli allenamenti **svolti** invece NON si leggono da qui: l'utente li
+sincronizza già, con dati molto più ricchi (FC, passo, TSS, dislivello...),
+in `dieta.allenamento` tramite un'altra sua web app — vedi
+`app/db/dieta_models.py` e `services/aggregator.get_dieta_activity`. Evita
+anche di far fare a due servizi diversi lo stesso login su Garmin (rischio
+concreto di rate limiting, osservato durante lo sviluppo).
 
 Login e MFA: Garmin richiede spesso un codice MFA al primo login interattivo.
 Il flusso qui è pensato per **non** richiederlo ad ogni richiesta HTTP:
@@ -88,25 +89,6 @@ class GarminAdapter(SourceAdapter):
                 continue
             titles.setdefault(item["date"], []).append(item["title"].strip())
         return {day: " + ".join(dict.fromkeys(names)) for day, names in titles.items()}
-
-    @staticmethod
-    def activity_summaries_by_date(calendar_month: dict) -> dict[str, list[str]]:
-        """Data (YYYY-MM-DD) -> riepiloghi delle attività svolte quel giorno
-        (es. "Modugno - 11km FL + 10×100 · 12.5 km · 68 min")."""
-        summaries: dict[str, list[str]] = {}
-        for item in calendar_month.get("calendarItems", []):
-            if item.get("itemType") != "activity":
-                continue
-            title = item.get("title") or "Attività"
-            distance_km = round(item["distance"] / 100_000, 1) if item.get("distance") else None
-            duration_min = round(item["duration"] / 60_000) if item.get("duration") else None
-            parts = [title]
-            if distance_km:
-                parts.append(f"{distance_km} km")
-            if duration_min:
-                parts.append(f"{duration_min} min")
-            summaries.setdefault(item["date"], []).append(" · ".join(parts))
-        return summaries
 
     async def fetch(self) -> list[dict]:
         raise NotImplementedError("Usare fetch_calendar_month: Garmin non ha un concetto di 'lista unica'")

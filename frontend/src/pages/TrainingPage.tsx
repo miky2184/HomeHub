@@ -1,85 +1,90 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Dumbbell, Watch } from 'lucide-react'
-import { useMarkTrainingDone, useTrainingWeek, useUpsertTrainingSession } from '../api/hooks'
+import { useTrainingWeek } from '../api/hooks'
+import { ActivityDetailModal } from '../components/ActivityDetailModal'
 import { Card } from '../components/Card'
 import { DAY_LABELS, currentWeekStart } from '../lib/date'
-import { buttonStyle, inputStyle } from '../styles/controls'
 
 export function TrainingPage() {
   const weekStart = currentWeekStart()
   const { data: sessions, isLoading, isError } = useTrainingWeek(weekStart)
-  const upsertSession = useUpsertTrainingSession(weekStart)
-  const markDone = useMarkTrainingDone(weekStart)
-  const [drafts, setDrafts] = useState<Record<number, string>>({})
-
-  useEffect(() => {
-    if (!sessions) return
-    const next: Record<number, string> = {}
-    sessions.forEach((s) => {
-      next[s.day_of_week] = s.session_text
-    })
-    setDrafts(next)
-  }, [sessions])
+  const [openDetail, setOpenDetail] = useState<{ date: string; title: string } | null>(null)
 
   if (isLoading) return <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>
   if (isError || !sessions) {
-    return <p style={{ color: 'var(--danger)' }}>Impossibile caricare gli allenamenti (richiede il Postgres configurato in backend/.env).</p>
+    return (
+      <p style={{ color: 'var(--danger)' }}>
+        Impossibile caricare gli allenamenti (richiede il Postgres configurato in backend/.env).
+      </p>
+    )
+  }
+
+  function dateForDay(dayIndex: number): string {
+    const d = new Date(weekStart)
+    d.setDate(d.getDate() + dayIndex)
+    return d.toISOString().slice(0, 10)
   }
 
   return (
     <>
       <h1 style={{ fontSize: 'var(--fs-greeting)', margin: '4px 0 8px' }}>Attività — allenamenti della settimana</h1>
       <p style={{ fontSize: 'var(--fs-label)', color: 'var(--text-muted)', margin: '0 0 8px' }}>
-        Piano comunicato dal coach via WhatsApp: inseriscilo qui giorno per giorno.
+        Piano letto da Garmin Connect; gli allenamenti svolti li programmi e sincronizzi da lì.
       </p>
 
       {DAY_LABELS.map((label, dayIndex) => {
-        const existing = sessions.find((s) => s.day_of_week === dayIndex)
+        const session = sessions.find((s) => s.day_of_week === dayIndex)
         return (
           <Card key={dayIndex} label={label} icon={Dumbbell} category="attivita">
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                value={drafts[dayIndex] ?? ''}
-                onChange={(e) => setDrafts((d) => ({ ...d, [dayIndex]: e.target.value }))}
-                placeholder="Es. Corsa 8km + core"
-                style={inputStyle}
-              />
-              <button
-                style={buttonStyle}
-                onClick={() => upsertSession.mutate({ day_of_week: dayIndex, session_text: drafts[dayIndex] ?? '' })}
-              >
-                Salva
-              </button>
-              {existing && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-label)' }}>
-                  <input
-                    type="checkbox"
-                    checked={existing.done}
-                    onChange={(e) => markDone.mutate({ id: existing.id, done: e.target.checked })}
-                    style={{ width: 20, height: 20 }}
-                  />
-                  Fatto
-                </label>
-              )}
-            </div>
-            {existing?.garmin_note && (
+            {!session ? (
+              <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>—</p>
+            ) : (
               <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginTop: 10,
-                  fontSize: 'var(--fs-label)',
-                  color: 'var(--cat-attivita-fg)',
-                }}
+                onClick={() =>
+                  session.done && setOpenDetail({ date: dateForDay(dayIndex), title: session.session_text })
+                }
+                style={{ cursor: session.done ? 'pointer' : 'default' }}
               >
-                <Watch size={15} />
-                <span>Da Garmin: {existing.garmin_note}</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-body)' }}>{session.session_text}</p>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: '4px 10px',
+                      borderRadius: 12,
+                      whiteSpace: 'nowrap',
+                      background: session.done ? 'var(--cat-attivita-bg)' : 'var(--border)',
+                      color: session.done ? 'var(--cat-attivita-fg)' : 'var(--text-muted)',
+                    }}
+                  >
+                    {session.done ? 'Fatto' : 'Da fare'}
+                  </span>
+                </div>
+                {session.garmin_note && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      marginTop: 10,
+                      fontSize: 'var(--fs-label)',
+                      color: 'var(--cat-attivita-fg)',
+                    }}
+                  >
+                    <Watch size={15} />
+                    <span>{session.garmin_note}</span>
+                  </div>
+                )}
               </div>
             )}
           </Card>
         )
       })}
+
+      {openDetail && (
+        <ActivityDetailModal date={openDetail.date} title={openDetail.title} onClose={() => setOpenDetail(null)} />
+      )}
     </>
   )
 }

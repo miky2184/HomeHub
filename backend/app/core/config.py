@@ -27,9 +27,15 @@ class Settings(BaseSettings):
     bring_email: str = ""
     bring_password: str = ""
 
-    # --- Garmin Connect (API non ufficiale, fase futura) ---
+    # --- Garmin Connect (API non ufficiale) — solo per il piano pianificato
+    # (allenamenti assegnati ai giorni); gli allenamenti svolti si leggono
+    # invece da dieta.allenamento (vedi sotto), già sincronizzata da un'altra
+    # web app dell'utente con dati più ricchi della sola API Garmin.
     garmin_email: str = ""
     garmin_password: str = ""
+
+    # --- Schema "dieta" (stesso Postgres di homehub, altra web app) ---
+    dieta_user_id: int | None = None
 
     # --- Web app esistenti: API key per-servizio ---
     finance_app_base_url: str = ""

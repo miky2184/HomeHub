@@ -7,6 +7,7 @@ import type {
   InventoryAlert,
   MenuWeek,
   ShoppingItem,
+  TrainingActivityDetail,
   TrainingSession,
 } from './types'
 
@@ -77,18 +78,18 @@ export function useTrainingWeek(weekStartDate: string) {
   return useQuery({
     queryKey: ['training-week', weekStartDate],
     queryFn: () => api.get<TrainingSession[]>(`/api/training/week?week_start_date=${weekStartDate}`),
+    // Il piano ora arriva da Garmin/dieta.allenamento (non più editabile a
+    // mano dalla UI): forza un fetch fresco ogni volta che si torna sulla
+    // tab Attività, invece di fidarsi della cache di TanStack Query.
+    refetchOnMount: 'always',
   })
 }
 
-export function useUpsertTrainingSession(weekStartDate: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: { day_of_week: number; session_text: string }) =>
-      api.put('/api/training', { week_start_date: weekStartDate, ...payload }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['training-week', weekStartDate] })
-      queryClient.invalidateQueries({ queryKey: ['home-summary'] })
-    },
+export function useTrainingActivityDetail(activityDate: string | null) {
+  return useQuery({
+    queryKey: ['training-activity', activityDate],
+    queryFn: () => api.get<TrainingActivityDetail>(`/api/training/activity/${activityDate}`),
+    enabled: activityDate !== null,
   })
 }
 

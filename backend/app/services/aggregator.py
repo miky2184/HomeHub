@@ -12,9 +12,13 @@ from app.adapters.garmin import GarminAdapter
 from app.adapters.google_calendar import GoogleCalendarAdapter
 from app.adapters.inventory_app import InventoryAdapter
 from app.adapters.menu_app import HomeMenuAdapter
+from app.core.config import get_settings
+from app.db.dieta_models import allenamento_table
 from app.db.models import SchoolMenuEntry, TrainingSession as TrainingSessionModel
-from app.schemas.common import HomeSummary, MenuDay, TrainingSessionOut
+from app.schemas.common import HomeSummary, MenuDay, TrainingActivityDetail, TrainingSessionOut
 from app.services import cache
+
+settings = get_settings()
 
 calendar_adapter = GoogleCalendarAdapter()
 bring_adapter = BringAdapter()
@@ -87,10 +91,33 @@ async def get_garmin_scheduled_title(day: date) -> str | None:
     return GarminAdapter.scheduled_titles_by_date(calendar_month).get(day.isoformat())
 
 
-async def get_garmin_activity_summaries(day: date) -> list[str]:
-    """Riepiloghi delle attività Garmin effettivamente svolte quel giorno."""
-    calendar_month = await _get_garmin_calendar_month(day.year, day.month)
-    return GarminAdapter.activity_summaries_by_date(calendar_month).get(day.isoformat(), [])
+def get_dieta_activity(db: Session, day: date) -> TrainingActivityDetail | None:
+    """Allenamento svolto quel giorno, letto da dieta.allenamento (altra web
+    app dell'utente, già sincronizzata da Garmin con dati più ricchi della
+    sola API Garmin — vedi app/db/dieta_models.py). Nessuna cache: è una
+    query locale su Postgres, non una chiamata di rete."""
+    if settings.dieta_user_id is None:
+        return None
+    row = db.execute(
+        allenamento_table.select().where(
+            allenamento_table.c.user_id == settings.dieta_user_id,
+            allenamento_table.c.data == day,
+        )
+    ).first()
+    if row is None:
+        return None
+    return TrainingActivityDetail(**row._mapping)
+
+
+def dieta_activity_summary(activity: TrainingActivityDetail) -> str:
+    """Riepilogo breve per la card nella pagina Allenamenti, es.
+    "Corsa · 8.2 km · 42 min"."""
+    parts = [activity.titolo or activity.tipo or "Allenamento"]
+    if activity.distanza_m:
+        parts.append(f"{round(activity.distanza_m / 1000, 1)} km")
+    if activity.durata_sec:
+        parts.append(f"{round(activity.durata_sec / 60)} min")
+    return " · ".join(parts)
 
 
 def get_school_meal_today(db: Session, today: date) -> str | None:

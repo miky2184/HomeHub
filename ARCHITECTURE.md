@@ -21,8 +21,8 @@
 | Persistenza | **PostgreSQL già disponibile** (istanza esistente), con **schema dedicato `homehub`** (confermato) per dati manuali (menu, allenamenti), cache e config, separato dalle tabelle delle altre app |
 | Backend stack | **Python + FastAPI** (coerente con lo stack delle 3 web app esistenti, tutte in Python) |
 | Monitor | Arzopa, risoluzione **1080×1920** (verticale) — usata come riferimento per griglia/breakpoint del frontend |
-| Allenamenti | Comunicati dal coach via WhatsApp → l'utente li crea e li assegna ai giorni **direttamente su Garmin Connect** (non più inserimento manuale in HomeHub come ipotizzato all'inizio); ✅ HomeHub legge il piano da lì e auto-marca "fatto" quando trova un'attività svolta quel giorno — l'inserimento manuale resta solo come fallback per i giorni senza nulla su Garmin — vedi `backend/app/adapters/garmin.py` |
-| Lettura vs scrittura | La dashboard **non è di sola lettura**: deve permettere azioni (spuntare/aggiungere articoli Bring!, aggiungere eventi calendario, segnare consumi in inventory, inserire/modificare menu e allenamenti, ecc.) |
+| Allenamenti | Comunicati dal coach via WhatsApp → l'utente li crea e li assegna ai giorni **direttamente su Garmin Connect** (non più inserimento manuale in HomeHub come ipotizzato all'inizio); ✅ HomeHub legge il piano da lì (`get_scheduled_workouts`) e gli allenamenti svolti da **`dieta.allenamento`** (altra web app dell'utente sullo stesso Postgres, già sincronizzata da Garmin con dati più ricchi — FC, passo, TSS, dislivello). Tab di **sola lettura** in HomeHub, niente editing manuale — vedi `backend/app/adapters/garmin.py` e `backend/app/db/dieta_models.py` |
+| Lettura vs scrittura | La dashboard **non è di sola lettura in generale**: azioni previste per spuntare/aggiungere articoli Bring!, aggiungere eventi calendario, segnare consumi in inventory, modificare menu, ecc. — eccezione: la tab **Allenamenti è sola lettura** (il piano si programma su Garmin, non in HomeHub) |
 | Multi-utente | **No**: vista unica e condivisa per tutta la famiglia, nessun login/logout — chi guarda il monitor vede/agisce direttamente, senza switch di utenza |
 | API non ufficiali | Va bene usarle in generale (non solo per Bring!), tenendo presente il rischio di breaking change e isolandole dietro gli adapter del backend |
 | Deliverable di questa fase | Solo documento di design (nessuno scaffolding di codice per ora) |
@@ -136,7 +136,7 @@ Note di design:
 | **Home** | Riepilogo: eventi di oggi, meteo, menu del giorno, prossimo allenamento, evidenze spesa, alert inventory | Backend aggregatore (già normalizzato) |
 | **Calendario** | Vista mensile/settimanale Google Calendar, eventi dei vari membri famiglia con colori distinti | Google Calendar API (via backend, OAuth) |
 | **Menu** | Menu scolastico (inserimento manuale una volta ricevuto) + menu di casa (dalla web app esistente) | Inserimento manuale (salvato su Postgres) + API della web app menu casa |
-| **Allenamenti** | Piano settimanale allenamenti (comunicato dal coach via WA) | Inserimento manuale (salvato su Postgres); ✅ arricchito con sync automatico da Garmin Connect (API non ufficiale) — auto-segna "fatto" + mostra un riepilogo dell'attività reale |
+| **Allenamenti** | Piano settimanale (sola lettura) + dettaglio dell'allenamento svolto in una modale | ✅ Piano da Garmin Connect (API non ufficiale, `get_scheduled_workouts`); allenamenti svolti da `dieta.allenamento` (altra web app dell'utente, già sincronizzata da Garmin con dati più ricchi: FC, passo, TSS, dislivello...) — stesso Postgres di homehub, schema diverso |
 | **Spesa (Bring!)** | Lista della spesa condivisa, con possibilità di spuntare/aggiungere articoli | Bring! API (non ufficiale, via backend) |
 | **Home Inventory** | Stato scorte, alert scorte basse, azioni rapide (consumo/scarico articolo) | API della web app home inventory esistente |
 | **Finanze** *(opzionale)* | Riepilogo/situazione finanziaria | API della web app finanze esistente |
@@ -149,7 +149,7 @@ La dashboard deve poter scrivere, non solo mostrare. Elenco (non esaustivo) dell
 |---|---|
 | Calendario | Aggiunta rapida evento (titolo, data/ora, calendario di destinazione) |
 | Menu | Inserimento/modifica menu scolastico della settimana; eventuale nota/variazione sul menu di casa |
-| Allenamenti | Inserimento/modifica del piano settimanale (dettato dal coach) |
+| Allenamenti | Nessuna (tab di sola lettura): il piano si programma su Garmin Connect, non in HomeHub — vedi §5. Click su un allenamento svolto apre il dettaglio in una modale |
 | Spesa (Bring!) | Spuntare articoli come presi, aggiungere nuovi articoli, rimuovere articoli |
 | Home Inventory | Segnare un articolo come consumato/scaricato, aggiornare quantità |
 | Finanze *(opzionale)* | Dipende da cosa espone già l'app finanze esistente (es. registrare una spesa rapida) |

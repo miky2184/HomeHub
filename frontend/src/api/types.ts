@@ -36,6 +36,23 @@ export interface TrainingSession {
   garmin_note: string | null
 }
 
+export interface TrainingActivityDetail {
+  data: string
+  tipo: string | null
+  titolo: string | null
+  distanza_m: number | null
+  durata_sec: number | null
+  calorie: number | null
+  fc_media: number | null
+  fc_max: number | null
+  te_aerobico: number | null
+  passo_sec: number | null
+  cadenza: number | null
+  tss: number | null
+  ascesa_m: number | null
+  swolf: number | null
+}
+
 export interface ShoppingItem {
   id: string
   name: string
