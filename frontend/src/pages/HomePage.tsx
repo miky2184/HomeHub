@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem } from '../api/hooks'
 import { Card } from '../components/Card'
 import { MealList } from '../components/MealList'
-import { FAMILY_MEMBER_NAME, getGreeting } from '../config'
 import { useClock } from '../hooks/useClock'
 import { inferEventIcon } from '../lib/eventIcon'
 import { currentWeekStart, toDateKey } from '../lib/date'
@@ -26,7 +25,7 @@ export function HomePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 'var(--fs-greeting)', color: 'var(--text-primary)' }}>
-            {getGreeting(now)} {FAMILY_MEMBER_NAME}!
+            {getGreeting(now)}!
           </h1>
           <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)', fontSize: 'var(--fs-body)' }}>
             {data.saint_of_day && `Oggi è ${data.saint_of_day}`}
