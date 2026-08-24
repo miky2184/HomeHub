@@ -146,6 +146,26 @@ export interface TodoSummary {
   top: TodoItem[]
 }
 
+// Finanze: MAI importi assoluti in nessuno di questi tipi — solo
+// percentuali/stati derivati (vedi backend/app/adapters/finance.py). Il
+// monitor sta in cucina, visibile anche dagli ospiti.
+export interface FinanceCategoryStatus {
+  label: string
+  perc_speso: number
+  perc_proiezione: number
+  alert_level: 0 | 1 | 2
+}
+
+export interface UpcomingExpense {
+  beneficiario: string | null
+  due_date: string
+}
+
+export interface FinanceSummary {
+  categories: FinanceCategoryStatus[]
+  upcoming_expenses: UpcomingExpense[]
+}
+
 export interface HomeSummary {
   now: string
   weather: WeatherSnapshot | null
@@ -158,4 +178,6 @@ export interface HomeSummary {
   shopping_total_count: number
   inventory_alerts: InventoryAlert[]
   todos: TodoSummary
+  finance: FinanceSummary | null
+  guest_mode: boolean
 }

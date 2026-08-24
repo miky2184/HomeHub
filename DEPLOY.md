@@ -37,6 +37,12 @@ Apri `backend/.env` e compila **almeno**:
   GRANT USAGE ON SCHEMA dieta TO homehub;
   GRANT SELECT ON dieta.menu_settimanale TO homehub;
   ```
+- Finanze: il widget "prossime scadenze" legge direttamente `home.finance`/`home.beneficiario` (le percentuali di budget invece passano dall'API REST di quell'app, non dal DB — vedi ARCHITECTURE.md §5). Serve quindi anche questo grant:
+  ```sql
+  GRANT USAGE ON SCHEMA home TO homehub;
+  GRANT SELECT ON home.finance, home.beneficiario TO homehub;
+  ```
+  Compila poi `FINANCE_APP_BASE_URL`/`FINANCE_USERNAME`/`FINANCE_PASSWORD` in `.env` (stesso account personale già usato sulla web app finanze) per attivare anche le percentuali di budget — senza queste tre, il tab/la card Finanze restano vuoti (non mostrano dati finti, a differenza degli altri adapter, vista la sensibilità dei dati).
 
 ## 3. Creare lo schema `homehub` sul Postgres
 

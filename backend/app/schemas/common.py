@@ -203,6 +203,29 @@ class TodoSummary(BaseModel):
     top: list[TodoItemOut]  # prime 3 per priorità/scadenza, solo non fatti
 
 
+class FinanceCategoryStatus(BaseModel):
+    """MAI un importo: solo percentuali derivate (vedi app/adapters/finance.py).
+    alert_level: 0 in linea, 1 attenzione (proiezione >80% del budget), 2 sopra budget."""
+
+    label: str
+    perc_speso: float
+    perc_proiezione: float
+    alert_level: Literal[0, 1, 2]
+
+
+class UpcomingExpense(BaseModel):
+    """Movimento pianificato non ancora contabilizzato (tipo_conto=0, uscita).
+    Mai l'importo — solo chi/quando, per un promemoria al colpo d'occhio."""
+
+    beneficiario: str | None = None
+    due_date: date
+
+
+class FinanceSummary(BaseModel):
+    categories: list[FinanceCategoryStatus]
+    upcoming_expenses: list[UpcomingExpense]
+
+
 class HomeSummary(BaseModel):
     now: datetime
     weather: WeatherSnapshot | None = None
@@ -215,3 +238,5 @@ class HomeSummary(BaseModel):
     shopping_total_count: int
     inventory_alerts: list[InventoryAlert]
     todos: TodoSummary
+    finance: FinanceSummary | None = None  # None se modalità ospiti attiva o non configurato
+    guest_mode: bool = False

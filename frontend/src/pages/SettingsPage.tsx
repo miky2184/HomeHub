@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
-import { CalendarClock, ChefHat, Cookie, Settings } from 'lucide-react'
+import { CalendarClock, ChefHat, Cookie, Settings, ShieldOff } from 'lucide-react'
 import type { SchoolMenuTemplateEntry, SnackTemplateEntry } from '../api/types'
-import { useMenuSettings, useUpsertSchoolAnchor, useUpsertSchoolTemplate, useUpsertSnacks } from '../api/hooks'
+import {
+  useGuestMode,
+  useMenuSettings,
+  useSetGuestMode,
+  useUpsertSchoolAnchor,
+  useUpsertSchoolTemplate,
+  useUpsertSnacks,
+} from '../api/hooks'
 import { Card } from '../components/Card'
 import { DAY_LABELS } from '../lib/date'
 import { buttonStyle, inputStyle } from '../styles/controls'
@@ -23,6 +30,8 @@ export function SettingsPage() {
   const upsertTemplate = useUpsertSchoolTemplate()
   const upsertAnchor = useUpsertSchoolAnchor()
   const upsertSnacks = useUpsertSnacks()
+  const { data: guestMode } = useGuestMode()
+  const setGuestMode = useSetGuestMode()
 
   const [template, setTemplate] = useState<Record<string, string>>({})
   const [anchorMonday, setAnchorMonday] = useState('')
@@ -183,6 +192,30 @@ export function SettingsPage() {
             </button>
           </>
         )}
+      </Card>
+
+      <Card label="Privacy" icon={ShieldOff} category="finanze">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Modalità ospiti
+            </p>
+            <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>
+              Nasconde completamente il tab Finanze e la card in Home (percentuali comprese). Accessibile anche al
+              volo dall'icona nel rail.
+            </p>
+          </div>
+          <button
+            onClick={() => setGuestMode.mutate(!(guestMode?.enabled ?? false))}
+            style={{
+              ...buttonStyle,
+              background: guestMode?.enabled ? 'var(--warning)' : 'var(--accent)',
+              flexShrink: 0,
+            }}
+          >
+            {guestMode?.enabled ? 'Disattiva' : 'Attiva'}
+          </button>
+        </div>
       </Card>
 
       <Card label="Altre impostazioni" icon={Settings} category="home">

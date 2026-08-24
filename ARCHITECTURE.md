@@ -139,7 +139,7 @@ Note di design:
 | **Allenamenti** | Piano settimanale (sola lettura) + dettaglio dell'allenamento svolto in una modale | ✅ Piano da Garmin Connect (API non ufficiale, `get_scheduled_workouts`); allenamenti svolti da `dieta.allenamento` (altra web app dell'utente, già sincronizzata da Garmin con dati più ricchi: FC, passo, TSS, dislivello...) — stesso Postgres di homehub, schema diverso |
 | **Spesa (Bring!)** | Lista della spesa condivisa, con possibilità di spuntare/aggiungere articoli | Bring! API (non ufficiale, via backend) |
 | **Home Inventory** | ✅ **Sola lettura**: oggetti scaduti o in scadenza entro 7gg (stessa soglia "warning" della web app dedicata), con contenitore associato. Gestione (creare/modificare/consumare/quantità) resta nella web app `home_inventory_web` | Lettura diretta dello schema Postgres `home_inventory` (stesso Postgres di homehub, altra web app dell'utente — niente API REST, come per `dieta.allenamento`) — vedi `backend/app/db/home_inventory_models.py` |
-| **Finanze** *(opzionale)* | Riepilogo/situazione finanziaria | API della web app finanze esistente |
+| **Finanze** | ✅ **Privacy-first** (monitor in cucina, visibile anche dagli ospiti): MAI saldi o importi in euro, solo andamento budget del mese per categoria come percentuale (proiezione a fine mese + colore in base ad alert_level) e promemoria "prossime scadenze" (beneficiario + data, mai l'importo). **Modalità ospiti**: un toggle (Impostazioni o icona rapida nel rail) nasconde del tutto tab+card, lato backend non solo UI | Percentuali: API REST della web app finanze (`python-finanze-api`, endpoint `/budget-forecast-all`, già con la logica di calcolo budget/proiezione — HomeHub aggrega solo per categoria e scarta subito gli importi assoluti, vedi `backend/app/adapters/finance.py`). Scadenze: lettura diretta di `home.finance` (stesso Postgres, `tipo_conto=0` + `value<0`), nessun endpoint dedicato per questo in quell'app — vedi `backend/app/db/finance_models.py` |
 | **Todo** | ✅ Todo list condivisa di famiglia (no multi-utente/login): titolo, priorità (alta/media/bassa), scadenza opzionale, "per chi" (etichetta libera, non un vero assegnatario). CRUD completo nel tab; in Home una card mostra il conteggio degli aperti + i primi 3 per priorità/scadenza | Tabella propria `homehub.todo_item` — vedi `backend/app/db/models.py:TodoItem` e `backend/app/api/routes/todo.py` |
 
 ## 6. Azioni supportate dalla dashboard (non solo lettura)
@@ -153,7 +153,7 @@ La dashboard deve poter scrivere, non solo mostrare. Elenco (non esaustivo) dell
 | Allenamenti | Nessuna (tab di sola lettura): il piano si programma su Garmin Connect, non in HomeHub — vedi §5. Click su un allenamento svolto apre il dettaglio in una modale |
 | Spesa (Bring!) | Spuntare articoli come presi, aggiungere nuovi articoli, rimuovere articoli |
 | Home Inventory | Nessuna (tab di sola lettura, scelta esplicita): consumo/scarico/quantità restano nella web app `home_inventory_web` dedicata, per non rischiare scritture sbagliate sul suo DB da codice nuovo |
-| Finanze *(opzionale)* | Dipende da cosa espone già l'app finanze esistente (es. registrare una spesa rapida) |
+| Finanze | Nessuna azione di scrittura (sola lettura): l'unica "azione" è il toggle modalità ospiti, che vive concettualmente in Impostazioni |
 | Todo | CRUD completo: creare, modificare (titolo/priorità/scadenza/assegnatario), segnare come fatto, eliminare (con conferma) |
 
 Implicazioni di design:
@@ -180,7 +180,7 @@ Tabelle indicative nello schema dedicato `homehub`:
 - `training_plan(id, week_start_date, day_of_week, session_text, done boolean, created_at, updated_at)`
 - `todo_item(id, title, assignee, priority, due_date, done boolean, created_at, updated_at)` — vedi migrazione `0003_todo.py`
 - `cache_entries(source, key, payload jsonb, fetched_at)` *(opzionale, se si preferisce cache persistente a cache in memoria)*
-- `app_config(key, value)` *(config runtime non sensibile; i secret restano in `.env`, non a DB)*
+- `app_config(key, value)` *(config runtime non sensibile; i secret restano in `.env`, non a DB — usata es. per `guest_mode`, il flag "true"/"false" della modalità ospiti)*
 
 ### 7.2 Stack tecnico — deciso
 
@@ -218,7 +218,7 @@ Ogni integrazione esterna è isolata in un modulo/adapter con la stessa interfac
 - **Fase 2 — Menu & Allenamenti**: ✅ fatto. Tab Menu con template scuola/merende a rotazione (data entry in Impostazioni) + ✅ tutti i pasti di casa (colazione/spuntini/pranzo/cena) letti da `dieta.menu_settimanale`; tab Allenamenti da Garmin Connect + `dieta.allenamento`.
 - **Fase 3 — Spesa & Inventory**: ✅ fatto. Bring! (lettura + spunta/aggiunta/rimozione articoli, vedi `backend/app/adapters/bring.py`); home inventory in sola lettura, alert oggetti scaduti/in scadenza entro 7gg letti direttamente dallo schema Postgres `home_inventory` (vedi `backend/app/db/home_inventory_models.py`), niente azioni di scrittura (gestione lasciata alla web app dedicata).
 - **Fase 3.1 — Todo list**: ✅ fatto. Todo list condivisa di famiglia con priorità/scadenza/assegnatario libero, CRUD completo nel tab dedicato, card riepilogo in Home — vedi `backend/app/api/routes/todo.py` e `frontend/src/pages/TodoPage.tsx`.
-- **Fase 4 — Finanze (opzionale) & rifiniture azioni**: tab finanze se utile, revisione UX delle azioni di scrittura (conferme, feedback visivo, gestione errori di rete verso le fonti esterne).
+- **Fase 4 — Finanze & rifiniture azioni**: ✅ fatto. Tab Finanze privacy-first (solo percentuali/stati, mai importi) + modalità ospiti, vedi `backend/app/adapters/finance.py`; resta da fare la revisione UX generale delle azioni di scrittura (conferme, feedback visivo, gestione errori di rete verso le fonti esterne).
 - **Fase 5 — Polish & go-live**: idle/attract mode, gestione errori/offline dei singoli adapter, dismissione MagicMirror, deploy definitivo systemd+Docker sul NUC.
 - **Fase 6 — Estensioni future**: sync automatico allenamenti da Garmin Connect ✅ *(fatto, vedi sopra)*, SSE per aggiornamenti push multi-dispositivo, altri moduli.
 

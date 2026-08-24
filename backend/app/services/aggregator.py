@@ -8,14 +8,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.adapters.bring import BringAdapter
+from app.adapters.finance import FinanceAdapter
 from app.adapters.garmin import GarminAdapter
 from app.adapters.google_calendar import GoogleCalendarAdapter
 from app.adapters.santo_del_giorno import fetch_saint_of_day
 from app.adapters.weather import condition_label, fetch_weather_snapshot, geocode_city, parse_hourly, precipitation_alert
 from app.core.config import get_settings
 from app.db.dieta_models import GIORNI_SETTIMANA_IT, allenamento_table, menu_settimanale_table
+from app.db.finance_models import beneficiario_table, finance_table
 from app.db.home_inventory_models import containers_table, items_table
 from app.db.models import (
+    AppConfig,
     SchoolMenuCycleAnchor,
     SchoolMenuTemplateEntry,
     SnackTemplateEntry,
@@ -23,6 +26,7 @@ from app.db.models import (
     TrainingSession as TrainingSessionModel,
 )
 from app.schemas.common import (
+    FinanceSummary,
     HomeMeals,
     HomeSummary,
     HourlyForecast,
@@ -30,6 +34,7 @@ from app.schemas.common import (
     MenuDay,
     TodoItemOut,
     TodoSummary,
+    UpcomingExpense,
     TrainingActivityDetail,
     TrainingSessionOut,
     WeatherSnapshot,
@@ -46,6 +51,10 @@ MENU_CUTOFF_HOUR = 20
 calendar_adapter = GoogleCalendarAdapter()
 bring_adapter = BringAdapter()
 garmin_adapter = GarminAdapter()
+finance_adapter = FinanceAdapter()
+
+GUEST_MODE_CONFIG_KEY = "guest_mode"
+UPCOMING_EXPENSES_DAYS = 14
 
 # Soglia per gli alert di scadenza in Home: solo scaduti o in scadenza entro
 # questi giorni (stessa soglia "warning" del frontend di home_inventory_web,
@@ -138,6 +147,70 @@ def get_todo_summary(db: Session) -> TodoSummary:
     pending = [i for i in db.scalars(select(TodoItem)).all() if not i.done]
     top = sort_todos(pending)[:3]
     return TodoSummary(pending_count=len(pending), top=[todo_item_out(i) for i in top])
+
+
+def get_guest_mode(db: Session) -> bool:
+    """Modalità ospiti: quando attiva, nasconde l'intera sezione Finanze
+    (tab + card Home) — non solo lato UI, il backend smette proprio di
+    calcolare/restituire quei dati (vedi build_home_summary e
+    api/routes/finance.py). Persistita in app_config, non in .env, perché
+    va accesa/spenta al volo dall'utente, non in fase di deploy."""
+    row = db.get(AppConfig, GUEST_MODE_CONFIG_KEY)
+    return row is not None and row.value == "true"
+
+
+def set_guest_mode(db: Session, enabled: bool) -> bool:
+    row = db.get(AppConfig, GUEST_MODE_CONFIG_KEY)
+    value = "true" if enabled else "false"
+    if row:
+        row.value = value
+    else:
+        db.add(AppConfig(key=GUEST_MODE_CONFIG_KEY, value=value))
+    db.commit()
+    return enabled
+
+
+def get_upcoming_expenses(db: Session, today: date) -> list[UpcomingExpense]:
+    """Uscite pianificate non ancora contabilizzate (tipo_conto=0 = "da
+    avere" in quell'app, value negativo = uscita — le entrate con
+    tipo_conto=0 vengono escluse) nei prossimi UPCOMING_EXPENSES_DAYS
+    giorni. Legge SOLO beneficiario+data, MAI l'importo — vedi
+    app/db/finance_models.py. Lista vuota se FINANCE_* non configurate o
+    in caso di errore (widget decorativo, non deve mai rompere la Home)."""
+    if not finance_adapter.is_configured:
+        return []
+    try:
+        rows = db.execute(
+            select(finance_table.c.data_val, beneficiario_table.c.descrizione)
+            .select_from(
+                finance_table.outerjoin(beneficiario_table, finance_table.c.beneficiario == beneficiario_table.c.id)
+            )
+            .where(
+                finance_table.c.tipo_conto == 0,
+                finance_table.c.value < 0,
+                finance_table.c.data_val >= today,
+                finance_table.c.data_val <= today + timedelta(days=UPCOMING_EXPENSES_DAYS),
+            )
+            .order_by(finance_table.c.data_val.asc())
+            .limit(5)
+        ).all()
+        return [UpcomingExpense(beneficiario=row.descrizione, due_date=row.data_val) for row in rows]
+    except Exception:
+        return []
+
+
+async def get_finance_summary(db: Session, today: date) -> FinanceSummary | None:
+    """None se la modalità ospiti è attiva o l'integrazione non è
+    configurata: in quel caso la Home/il tab Finanze non mostrano proprio
+    la sezione, non solo dati vuoti."""
+    if get_guest_mode(db) or not finance_adapter.is_configured:
+        return None
+    try:
+        raw = await cache.get_or_set("finance_budget", finance_adapter.cache_ttl, finance_adapter.fetch)
+        categories = finance_adapter.normalize(raw)
+    except Exception:
+        categories = []
+    return FinanceSummary(categories=categories, upcoming_expenses=get_upcoming_expenses(db, today))
 
 
 # Chiavi pasto nel jsonb di dieta.menu_settimanale → campo HomeMeals
@@ -422,6 +495,8 @@ async def build_home_summary(db: Session) -> HomeSummary:
     next_training = get_next_training(db, today)
     saint_of_day = await get_saint_of_day(today)
     weather = await get_weather()
+    guest_mode = get_guest_mode(db)
+    finance = await get_finance_summary(db, today)
 
     return HomeSummary(
         now=now,
@@ -435,4 +510,6 @@ async def build_home_summary(db: Session) -> HomeSummary:
         shopping_total_count=len(shopping_items),
         inventory_alerts=inventory_alerts,
         todos=todos,
+        finance=finance,
+        guest_mode=guest_mode,
     )
