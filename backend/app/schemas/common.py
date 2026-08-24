@@ -125,11 +125,19 @@ class ShoppingItemCreate(BaseModel):
 
 
 class InventoryAlert(BaseModel):
-    id: str
+    """Oggetto in scadenza in home_inventory (schema della web app dedicata:
+    non esiste un concetto di "scorta minima", solo expiry_date — vedi
+    app/db/home_inventory_models.py). reason: "expired" | "critical" (≤3gg)
+    | "warning" (≤7gg), stesse soglie usate nel frontend di quella app."""
+
+    id: int
     item_name: str
     quantity: float | None = None
     unit: str | None = None
-    reason: str = "low_stock"
+    expiry_date: date | None = None
+    days_to_expiry: int | None = None
+    container_name: str | None = None
+    reason: str = "warning"
 
 
 class HourlyForecast(BaseModel):

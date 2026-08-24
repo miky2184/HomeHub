@@ -22,7 +22,7 @@
 | Backend stack | **Python + FastAPI** (coerente con lo stack delle 3 web app esistenti, tutte in Python) |
 | Monitor | Arzopa, risoluzione **1080×1920** (verticale) — usata come riferimento per griglia/breakpoint del frontend |
 | Allenamenti | Comunicati dal coach via WhatsApp → l'utente li crea e li assegna ai giorni **direttamente su Garmin Connect** (non più inserimento manuale in HomeHub come ipotizzato all'inizio); ✅ HomeHub legge il piano da lì (`get_scheduled_workouts`) e gli allenamenti svolti da **`dieta.allenamento`** (altra web app dell'utente sullo stesso Postgres, già sincronizzata da Garmin con dati più ricchi — FC, passo, TSS, dislivello). Tab di **sola lettura** in HomeHub, niente editing manuale — vedi `backend/app/adapters/garmin.py` e `backend/app/db/dieta_models.py` |
-| Lettura vs scrittura | La dashboard **non è di sola lettura in generale**: azioni previste per spuntare/aggiungere articoli Bring!, aggiungere eventi calendario, segnare consumi in inventory, modificare menu, ecc. — eccezione: la tab **Allenamenti è sola lettura** (il piano si programma su Garmin, non in HomeHub) |
+| Lettura vs scrittura | La dashboard **non è di sola lettura in generale**: azioni previste per spuntare/aggiungere articoli Bring!, aggiungere eventi calendario, modificare menu, ecc. — eccezioni sola lettura: **Allenamenti** (il piano si programma su Garmin, non in HomeHub), **Menu scuola/merende** (data entry in Impostazioni), **Home Inventory** (gestione nella web app dedicata, HomeHub legge solo gli alert di scadenza) |
 | Multi-utente | **No**: vista unica e condivisa per tutta la famiglia, nessun login/logout — chi guarda il monitor vede/agisce direttamente, senza switch di utenza |
 | API non ufficiali | Va bene usarle in generale (non solo per Bring!), tenendo presente il rischio di breaking change e isolandole dietro gli adapter del backend |
 | Deliverable di questa fase | Solo documento di design (nessuno scaffolding di codice per ora) |
@@ -138,7 +138,7 @@ Note di design:
 | **Menu** | Menu scolastico a **rotazione di 4 settimane** (il volantino della scuola, invariato per mesi) + merende mattina/pomeriggio fisse per giorno + menu di casa | ✅ Template + ancora ciclo su Postgres (data entry in Impostazioni, non in Cucina/Home che sono sola lettura) + API della web app menu casa (ancora mock) |
 | **Allenamenti** | Piano settimanale (sola lettura) + dettaglio dell'allenamento svolto in una modale | ✅ Piano da Garmin Connect (API non ufficiale, `get_scheduled_workouts`); allenamenti svolti da `dieta.allenamento` (altra web app dell'utente, già sincronizzata da Garmin con dati più ricchi: FC, passo, TSS, dislivello...) — stesso Postgres di homehub, schema diverso |
 | **Spesa (Bring!)** | Lista della spesa condivisa, con possibilità di spuntare/aggiungere articoli | Bring! API (non ufficiale, via backend) |
-| **Home Inventory** | Stato scorte, alert scorte basse, azioni rapide (consumo/scarico articolo) | API della web app home inventory esistente |
+| **Home Inventory** | ✅ **Sola lettura**: oggetti scaduti o in scadenza entro 7gg (stessa soglia "warning" della web app dedicata), con contenitore associato. Gestione (creare/modificare/consumare/quantità) resta nella web app `home_inventory_web` | Lettura diretta dello schema Postgres `home_inventory` (stesso Postgres di homehub, altra web app dell'utente — niente API REST, come per `dieta.allenamento`) — vedi `backend/app/db/home_inventory_models.py` |
 | **Finanze** *(opzionale)* | Riepilogo/situazione finanziaria | API della web app finanze esistente |
 
 ## 6. Azioni supportate dalla dashboard (non solo lettura)
@@ -151,7 +151,7 @@ La dashboard deve poter scrivere, non solo mostrare. Elenco (non esaustivo) dell
 | Menu (Cucina/Home) | Nessuna: tab di sola lettura. Data entry del template menu scuola/merende (2 volte l'anno) e del punto di partenza del ciclo, in Impostazioni |
 | Allenamenti | Nessuna (tab di sola lettura): il piano si programma su Garmin Connect, non in HomeHub — vedi §5. Click su un allenamento svolto apre il dettaglio in una modale |
 | Spesa (Bring!) | Spuntare articoli come presi, aggiungere nuovi articoli, rimuovere articoli |
-| Home Inventory | Segnare un articolo come consumato/scaricato, aggiornare quantità |
+| Home Inventory | Nessuna (tab di sola lettura, scelta esplicita): consumo/scarico/quantità restano nella web app `home_inventory_web` dedicata, per non rischiare scritture sbagliate sul suo DB da codice nuovo |
 | Finanze *(opzionale)* | Dipende da cosa espone già l'app finanze esistente (es. registrare una spesa rapida) |
 
 Implicazioni di design:
@@ -166,8 +166,8 @@ Implicazioni di design:
 - Espone un'unica API REST coerente al frontend (uno schema dati "HomeHub", non gli schemi eterogenei delle fonti), sia in lettura che in scrittura.
 - Gestisce OAuth2 con Google Calendar (token storage + refresh automatico) e le chiamate di scrittura (creazione eventi).
 - Gestisce sessione/credenziali Bring! (libreria non ufficiale, es. `bring-shopping` per Node o `python-bring-api` per Python), sia per leggere la lista sia per modificarla.
-- Fa da client verso le API REST delle 3 web app esistenti (finanze, menu, inventory), con retry/timeout e mapping verso lo schema unificato, incluse le eventuali azioni di scrittura che quelle API già espongono.
-- Cache per ridurre il numero di chiamate esterne (polling schedulato, es. calendario ogni 5', Bring! ogni 2', inventory/menu/finanze ogni 15'), invalidata subito dopo ogni azione di scrittura fatta dalla dashboard.
+- Fa da client verso le API REST delle web app esistenti (finanze, menu), con retry/timeout e mapping verso lo schema unificato, incluse le eventuali azioni di scrittura che quelle API già espongono. Home inventory fa eccezione: essendo sullo stesso Postgres, si legge direttamente il suo schema `home_inventory` (come `dieta.allenamento`), niente API REST di mezzo.
+- Cache per ridurre il numero di chiamate esterne (polling schedulato, es. calendario ogni 5', Bring! ogni 2', menu/finanze ogni 15'); le letture dirette da Postgres (dieta, home_inventory) non serve cacciarle, sono query locali, non chiamate di rete.
 - Storage per i dati "manuali" (menu scolastico, piano allenamenti) su **PostgreSQL** (istanza già esistente — HomeHub userà un proprio schema dedicato, per non mischiarsi con le tabelle delle altre app).
 - Config/secret management: file `.env` locale sul NUC (credenziali Postgres, OAuth Google, credenziali Bring!), mai nel repo.
 
@@ -205,7 +205,7 @@ Ogni integrazione esterna è isolata in un modulo/adapter con la stessa interfac
 
 ## 9. Punti operativi — risolti
 
-1. **Auth verso le API delle 3 web app esistenti**: sono API di login "basic", quindi siamo liberi di decidere l'approccio. Scelta consigliata: un **API key statica per-servizio** (una per finanze, una per menu, una per inventory), generata una tantum e messa in `.env` del backend HomeHub — nessun bisogno di gestire refresh/scadenza come per un vero OAuth. Se una delle app espone solo login utente/password, il backend HomeHub farà da "utente tecnico" (credenziali dedicate, non quelle personali) e gestirà lui la sessione/cookie verso quell'app, tenendolo comunque nascosto al frontend.
+1. **Auth verso le API delle web app esistenti (finanze, menu)**: sono API di login "basic", quindi siamo liberi di decidere l'approccio. Scelta consigliata: un **API key statica per-servizio** (una per finanze, una per menu), generata una tantum e messa in `.env` del backend HomeHub — nessun bisogno di gestire refresh/scadenza come per un vero OAuth. Se una delle app espone solo login utente/password, il backend HomeHub farà da "utente tecnico" (credenziali dedicate, non quelle personali) e gestirà lui la sessione/cookie verso quell'app, tenendolo comunque nascosto al frontend. Home inventory non serve: ✅ lettura diretta del suo schema Postgres, nessuna API/credenziale di mezzo.
 2. **Raggiungibilità Postgres**: confermato che l'istanza è raggiungibile sulla **stessa LAN** del NUC → connection string diretta (`host:porta` della LAN) in `.env`, nessun tunnel/VPN necessario. Consigliato comunque creare un **utente Postgres dedicato** con permessi limitati al solo schema `homehub` (niente accesso alle tabelle delle altre app), per isolamento.
 
 ## 10. Roadmap proposta (fasi)
@@ -213,7 +213,7 @@ Ogni integrazione esterna è isolata in un modulo/adapter con la stessa interfac
 - **Fase 0 — Scaffolding** ✅ *(fatto)*: monorepo `frontend/` (React + Vite + TS, rail + routing per tutti i tab, TanStack Query, idle/attract mode) e `backend/` (FastAPI, adapter per tutte le fonti con dati mock finché mancano le credenziali reali, modelli/migrazione Alembic per lo schema `homehub`, route REST complete), più `docker-compose.yml` e `.env.example`. Kiosk mode (Chromium + systemd) non ancora configurato: è un passo di deploy sul NUC reale, non scaffolding di codice.
 - **Fase 1 — Backend base**: skeleton BFF ✅, connessione al Postgres esistente (schema `homehub`) ✅, integrazione Google Calendar (lettura + aggiunta evento) ✅ *(vedi `backend/app/adapters/google_calendar.py`)*, Home con card calendario reali ✅, meteo ✅ *(Open-Meteo, gratuita e senza chiave, vedi `backend/app/adapters/weather.py`)*.
 - **Fase 2 — Menu & Allenamenti**: tab Menu con inserimento/modifica manuale menu scolastico + integrazione API menu di casa; tab Allenamenti con inserimento/modifica manuale del piano settimanale.
-- **Fase 3 — Spesa & Inventory**: integrazione Bring! ✅ *(fatto: lettura + spunta/aggiunta/rimozione articoli, vedi `backend/app/adapters/bring.py`)*, integrazione API home inventory (lettura + azione consumo/scarico), alert scorte in Home.
+- **Fase 3 — Spesa & Inventory**: ✅ fatto. Bring! (lettura + spunta/aggiunta/rimozione articoli, vedi `backend/app/adapters/bring.py`); home inventory in sola lettura, alert oggetti scaduti/in scadenza entro 7gg letti direttamente dallo schema Postgres `home_inventory` (vedi `backend/app/db/home_inventory_models.py`), niente azioni di scrittura (gestione lasciata alla web app dedicata).
 - **Fase 4 — Finanze (opzionale) & rifiniture azioni**: tab finanze se utile, revisione UX delle azioni di scrittura (conferme, feedback visivo, gestione errori di rete verso le fonti esterne).
 - **Fase 5 — Polish & go-live**: idle/attract mode, gestione errori/offline dei singoli adapter, dismissione MagicMirror, deploy definitivo systemd+Docker sul NUC.
 - **Fase 6 — Estensioni future**: sync automatico allenamenti da Garmin Connect ✅ *(fatto, vedi sopra)*, SSE per aggiornamenti push multi-dispositivo, altri moduli.

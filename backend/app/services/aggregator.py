@@ -10,12 +10,12 @@ from sqlalchemy.orm import Session
 from app.adapters.bring import BringAdapter
 from app.adapters.garmin import GarminAdapter
 from app.adapters.google_calendar import GoogleCalendarAdapter
-from app.adapters.inventory_app import InventoryAdapter
 from app.adapters.menu_app import HomeMenuAdapter
 from app.adapters.santo_del_giorno import fetch_saint_of_day
 from app.adapters.weather import condition_label, fetch_weather_snapshot, geocode_city, parse_hourly, precipitation_alert
 from app.core.config import get_settings
 from app.db.dieta_models import allenamento_table
+from app.db.home_inventory_models import containers_table, items_table
 from app.db.models import (
     SchoolMenuCycleAnchor,
     SchoolMenuTemplateEntry,
@@ -25,6 +25,7 @@ from app.db.models import (
 from app.schemas.common import (
     HomeSummary,
     HourlyForecast,
+    InventoryAlert,
     MenuDay,
     TrainingActivityDetail,
     TrainingSessionOut,
@@ -43,9 +44,13 @@ MENU_CUTOFF_HOUR = 20
 
 calendar_adapter = GoogleCalendarAdapter()
 bring_adapter = BringAdapter()
-inventory_adapter = InventoryAdapter()
 home_menu_adapter = HomeMenuAdapter()
 garmin_adapter = GarminAdapter()
+
+# Soglia per gli alert di scadenza in Home: solo scaduti o in scadenza entro
+# questi giorni (stessa soglia "warning" del frontend di home_inventory_web,
+# escludiamo la fascia più morbida a 30gg per non appesantire la Home).
+INVENTORY_ALERT_DAYS = 7
 
 
 def _week_start(d: date) -> date:
@@ -62,9 +67,43 @@ async def get_shopping_items():
     return bring_adapter.normalize(raw)
 
 
-async def get_inventory_alerts():
-    raw = await cache.get_or_set("inventory_alerts", inventory_adapter.cache_ttl, inventory_adapter.fetch)
-    return inventory_adapter.normalize(raw)
+def get_inventory_alerts(db: Session, today: date) -> list[InventoryAlert]:
+    """Oggetti scaduti o in scadenza entro INVENTORY_ALERT_DAYS, letti da
+    home_inventory.items (altra web app dell'utente — vedi
+    app/db/home_inventory_models.py). Sola lettura, nessuna cache: query
+    locale su Postgres, non una chiamata di rete."""
+    cutoff = today + timedelta(days=INVENTORY_ALERT_DAYS)
+    rows = db.execute(
+        select(
+            items_table.c.id,
+            items_table.c.name,
+            items_table.c.quantity,
+            items_table.c.unit_measure,
+            items_table.c.expiry_date,
+            containers_table.c.name.label("container_name"),
+        )
+        .select_from(items_table.outerjoin(containers_table, items_table.c.container_id == containers_table.c.id))
+        .where(items_table.c.expiry_date.is_not(None), items_table.c.expiry_date <= cutoff)
+        .order_by(items_table.c.expiry_date.asc())
+    ).all()
+
+    alerts = []
+    for row in rows:
+        days = (row.expiry_date - today).days
+        reason = "expired" if days < 0 else ("critical" if days <= 3 else "warning")
+        alerts.append(
+            InventoryAlert(
+                id=row.id,
+                item_name=row.name,
+                quantity=row.quantity,
+                unit=row.unit_measure,
+                expiry_date=row.expiry_date,
+                days_to_expiry=days,
+                container_name=row.container_name,
+                reason=reason,
+            )
+        )
+    return alerts
 
 
 async def get_home_meal_today() -> str | None:
@@ -290,7 +329,7 @@ async def build_home_summary(db: Session) -> HomeSummary:
     shopping_items = await get_shopping_items()
     unchecked = [i for i in shopping_items if not i.checked]
 
-    inventory_alerts = await get_inventory_alerts()
+    inventory_alerts = get_inventory_alerts(db, today)
 
     menu_day = await build_menu_day(db, effective_menu_date(now))
     today_menu = (

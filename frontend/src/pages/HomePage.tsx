@@ -134,7 +134,7 @@ export function HomePage() {
             {data.inventory_alerts.length}
           </p>
           <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>
-            {data.inventory_alerts.length > 0 ? 'scorte in esaurimento' : 'tutto a posto'}
+            {data.inventory_alerts.length > 0 ? 'oggetti in scadenza' : 'niente in scadenza'}
           </p>
         </Card>
       </div>

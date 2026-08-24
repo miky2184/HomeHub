@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # --- Schema "dieta" (stesso Postgres di homehub, altra web app) ---
     dieta_user_id: int | None = None
 
+    # --- Schema "home_inventory" (stesso Postgres, altra web app: niente
+    # config qui, si legge sempre — vedi app/db/home_inventory_models.py e
+    # app/services/aggregator.py:get_inventory_alerts) ---
+
     # --- Meteo (Open-Meteo, gratuita, senza chiave) ---
     # weather_city è sempre usata come etichetta mostrata in UI. Se
     # weather_latitude/longitude sono compilate, hanno la priorità per il
@@ -51,8 +55,6 @@ class Settings(BaseSettings):
     finance_app_api_key: str = ""
     menu_app_base_url: str = ""
     menu_app_api_key: str = ""
-    inventory_app_base_url: str = ""
-    inventory_app_api_key: str = ""
 
     # --- Cache/polling (secondi) ---
     cache_ttl_calendar: int = 300

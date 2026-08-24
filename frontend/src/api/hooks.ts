@@ -182,23 +182,12 @@ export function useRemoveShoppingItem() {
   })
 }
 
-// --- Home inventory ---
+// --- Home inventory (sola lettura: la gestione resta nella web app dedicata) ---
 
 export function useInventoryAlerts() {
   return useQuery({
     queryKey: ['inventory-alerts'],
     queryFn: () => api.get<InventoryAlert[]>('/api/inventory/alerts'),
     refetchInterval: 15 * 60_000,
-  })
-}
-
-export function useMarkConsumed() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (itemId: string) => api.patch<InventoryAlert[]>(`/api/inventory/${itemId}/consume`),
-    onSuccess: (alerts) => {
-      queryClient.setQueryData(['inventory-alerts'], alerts)
-      queryClient.invalidateQueries({ queryKey: ['home-summary'] })
-    },
   })
 }

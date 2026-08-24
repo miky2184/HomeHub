@@ -88,11 +88,14 @@ export interface ShoppingItem {
 }
 
 export interface InventoryAlert {
-  id: string
+  id: number
   item_name: string
   quantity: number | null
   unit: string | null
-  reason: string
+  expiry_date: string | null
+  days_to_expiry: number | null
+  container_name: string | null
+  reason: 'expired' | 'critical' | 'warning'
 }
 
 export interface HourlyForecast {

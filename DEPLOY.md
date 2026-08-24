@@ -27,6 +27,11 @@ Apri `backend/.env` e compila **almeno**:
 - `DATABASE_URL`: connection string reale verso il Postgres esistente sulla LAN, con lo schema dedicato, es.
   `postgresql+psycopg://homehub:LA_TUA_PASSWORD@IP_POSTGRES:5432/nome_db`
 - Lascia vuote per ora `GOOGLE_*`, `BRING_*`, `*_APP_*`: senza queste, quegli adapter continuano a rispondere con dati di esempio (vedi ARCHITECTURE.md §9) — non bloccano l'avvio, solo quella parte di Home resta "finta" finché non li configuriamo uno per uno.
+- Home inventory non ha variabili da compilare (legge sempre direttamente lo schema `home_inventory` sullo stesso Postgres). L'unico requisito è che l'utente Postgres di `DATABASE_URL` (es. `homehub`) abbia **SELECT** su `home_inventory.items` e `home_inventory.containers` — se non l'ha già (es. perché è un ruolo diverso da quello usato da `home_inventory_web`), concedilo con:
+  ```sql
+  GRANT USAGE ON SCHEMA home_inventory TO homehub;
+  GRANT SELECT ON home_inventory.items, home_inventory.containers TO homehub;
+  ```
 
 ## 3. Creare lo schema `homehub` sul Postgres
 
