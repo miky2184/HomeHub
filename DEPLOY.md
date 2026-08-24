@@ -87,7 +87,9 @@ Poi apri `http://localhost:8444` (o `http://IP_NUC:8444`) nel browser: dovresti 
 
 ## Esposizione su internet (port forwarding)
 
-Hai scelto di rendere HomeHub raggiungibile anche da fuori casa via port forwarding sul router, sulla porta **8444** (esterna e interna). Con la configurazione sopra:
+> ⚠️ **Stato attuale: Basic Auth disattivata temporaneamente** (commentata in `frontend/nginx.conf`), su richiesta esplicita per poter lavorare da remoto senza il blocco del popup su Chrome/Edge. In questo momento la porta **8444** è raggiungibile da chiunque su internet **senza alcuna autenticazione**, in lettura e scrittura (calendario, spesa, inventory, ecc.). Da ripristinare prima di lasciare l'accesso esterno attivo stabilmente — o, più semplice, rimuovere la regola di port forward sul router quando l'accesso da fuori casa non serve più (vedi nota in cima a `frontend/nginx.conf` per come riattivarla).
+
+Hai scelto di rendere HomeHub raggiungibile anche da fuori casa via port forwarding sul router, sulla porta **8444** (esterna e interna). Con la configurazione (Basic Auth attiva):
 
 - **Sul router**: una sola regola, esterna `8444` → interna `8444` verso l'IP del NUC. **Non forwardare mai la 8000**: il backend non è più raggiungibile dall'host, quindi non c'è nulla da aprire per lui.
 - Da dentro casa (subnet configurata in `frontend/nginx.conf`) l'app resta senza login, come da progetto originale.
