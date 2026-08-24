@@ -14,12 +14,23 @@ export function AppLayout() {
           minWidth: 0,
           overflowY: 'auto',
           padding: '20px 20px 40px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--gap-md)',
         }}
       >
-        <Outlet />
+        {/* HomeHub è pensato per il monitor verticale del NUC (~950px di
+            contenuto): senza questo limite, su un browser desktop largo
+            (es. mentre si sviluppa/testa da remoto) card e calendario si
+            allargano a dismisura invece di restare compatti. */}
+        <div
+          style={{
+            maxWidth: 960,
+            margin: '0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--gap-md)',
+          }}
+        >
+          <Outlet />
+        </div>
       </main>
     </div>
   )

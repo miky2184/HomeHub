@@ -30,7 +30,7 @@ export function MonthCalendar({ eventDateKeys, selectedDate, onSelectDate }: Mon
   }
 
   return (
-    <div>
+    <div style={{ maxWidth: 300, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <button onClick={() => changeMonth(-1)} aria-label="Mese precedente" style={navButtonStyle}>
           <ChevronLeft size={18} />
@@ -69,7 +69,9 @@ export function MonthCalendar({ eventDateKeys, selectedDate, onSelectDate }: Mon
                 onClick={() => onSelectDate(day)}
                 style={{
                   position: 'relative',
-                  aspectRatio: '1',
+                  width: 36,
+                  height: 36,
+                  margin: '0 auto',
                   border: isToday && !isSelected ? '2px solid var(--cat-agenda-fg)' : 'none',
                   borderRadius: '50%',
                   background: isSelected ? 'var(--cat-agenda-fg)' : 'transparent',
