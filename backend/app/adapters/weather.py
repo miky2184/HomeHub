@@ -2,11 +2,17 @@
 verificata a mano prima di integrarla:
 - geocoding: https://geocoding-api.open-meteo.com/v1/search?name=Milano
   → {"results": [{"latitude": ..., "longitude": ..., ...}]}
-- previsioni: https://api.open-meteo.com/v1/forecast?latitude=...&longitude=...&current=temperature_2m,weather_code
-  → {"current": {"temperature_2m": 29.2, "weather_code": 3}}
+- previsioni (attuale + orarie in una sola chiamata):
+  https://api.open-meteo.com/v1/forecast?latitude=...&longitude=...
+    &current=temperature_2m,weather_code
+    &hourly=temperature_2m,weather_code,precipitation_probability
+  → {"current": {...}, "hourly": {"time": [...], "temperature_2m": [...], ...}}
+  (array paralleli, un valore per ogni ora — verificato a mano).
 
 "weather_code" è lo standard WMO (stessa codifica ovunque): mappato qui a
 una breve descrizione in italiano (tabella ufficiale Open-Meteo)."""
+
+from datetime import datetime, timedelta
 
 import httpx
 
@@ -44,6 +50,14 @@ WMO_CONDITIONS: dict[int, str] = {
     99: "Temporale con grandine forte",
 }
 
+RAIN_CODES = {51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99}
+SNOW_CODES = {71, 73, 75, 77, 85, 86}
+
+# Finestra "giornata attiva" in cui ha senso avvisare di pioggia/neve in
+# arrivo (fuori da qui, es. di notte, l'avviso non serve a preparare nulla).
+DAY_WINDOW_START_HOUR = 8
+DAY_WINDOW_END_HOUR = 22
+
 
 async def geocode_city(city: str) -> tuple[float, float] | None:
     """Coordinate di una città, una tantum (non cambiano: il chiamante mette
@@ -60,7 +74,11 @@ async def geocode_city(city: str) -> tuple[float, float] | None:
     return results[0]["latitude"], results[0]["longitude"]
 
 
-async def fetch_current_weather(latitude: float, longitude: float) -> dict:
+async def fetch_weather_snapshot(latitude: float, longitude: float) -> dict:
+    """Meteo attuale + previsioni orarie (oggi e domani), in un'unica
+    chiamata. Ritorna dati grezzi (dict); services/aggregator.py li elabora
+    in HourlyForecast/l'avviso pioggia-neve, per tenere questo adapter
+    semplice e senza logica di dominio."""
     async with httpx.AsyncClient(timeout=5.0) as client:
         response = await client.get(
             FORECAST_URL,
@@ -68,14 +86,74 @@ async def fetch_current_weather(latitude: float, longitude: float) -> dict:
                 "latitude": latitude,
                 "longitude": longitude,
                 "current": "temperature_2m,weather_code",
+                "hourly": "temperature_2m,weather_code,precipitation_probability",
+                "forecast_days": 2,
                 "timezone": "auto",
             },
         )
         response.raise_for_status()
-        data = response.json()
-    current = data.get("current", {})
-    code = current.get("weather_code")
-    return {
-        "temperature_c": current.get("temperature_2m"),
-        "condition": WMO_CONDITIONS.get(code),
-    }
+        return response.json()
+
+
+def condition_label(code: int | None) -> str | None:
+    return WMO_CONDITIONS.get(code) if code is not None else None
+
+
+def parse_hourly(raw: dict, now: datetime, count: int) -> list[dict]:
+    """Le prossime `count` ore da adesso in poi (ora corrente inclusa se non
+    ancora passata), come lista di dict pronti per HourlyForecast."""
+    hourly = raw.get("hourly", {})
+    times = hourly.get("time", [])
+    temps = hourly.get("temperature_2m", [])
+    codes = hourly.get("weather_code", [])
+    probs = hourly.get("precipitation_probability", [])
+
+    result = []
+    for i, time_str in enumerate(times):
+        hour_dt = datetime.fromisoformat(time_str)
+        if hour_dt < now.replace(minute=0, second=0, microsecond=0):
+            continue
+        result.append(
+            {
+                "time": hour_dt,
+                "temperature_c": temps[i] if i < len(temps) else None,
+                "condition": condition_label(codes[i] if i < len(codes) else None),
+                "precipitation_probability": probs[i] if i < len(probs) else None,
+            }
+        )
+        if len(result) >= count:
+            break
+    return result
+
+
+def precipitation_alert(raw: dict, now: datetime, current_code: int | None) -> str | None:
+    """Se non sta già piovendo/nevicando adesso, ma pioggia o neve sono
+    previste più tardi oggi (tra le DAY_WINDOW_START_HOUR e le
+    DAY_WINDOW_END_HOUR), un breve avviso da mostrare in Home."""
+    if current_code in RAIN_CODES or current_code in SNOW_CODES:
+        return None
+
+    hourly = raw.get("hourly", {})
+    times = hourly.get("time", [])
+    codes = hourly.get("weather_code", [])
+    today = now.date()
+
+    will_rain = False
+    will_snow = False
+    for i, time_str in enumerate(times):
+        hour_dt = datetime.fromisoformat(time_str)
+        if hour_dt.date() != today or hour_dt < now:
+            continue
+        if not (DAY_WINDOW_START_HOUR <= hour_dt.hour <= DAY_WINDOW_END_HOUR):
+            continue
+        code = codes[i] if i < len(codes) else None
+        if code in SNOW_CODES:
+            will_snow = True
+        elif code in RAIN_CODES:
+            will_rain = True
+
+    if will_snow:
+        return "Possibile neve più tardi"
+    if will_rain:
+        return "Possibile pioggia più tardi"
+    return None

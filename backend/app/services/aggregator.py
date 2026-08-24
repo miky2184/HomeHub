@@ -13,7 +13,7 @@ from app.adapters.google_calendar import GoogleCalendarAdapter
 from app.adapters.inventory_app import InventoryAdapter
 from app.adapters.menu_app import HomeMenuAdapter
 from app.adapters.santo_del_giorno import fetch_saint_of_day
-from app.adapters.weather import fetch_current_weather, geocode_city
+from app.adapters.weather import condition_label, fetch_weather_snapshot, geocode_city, parse_hourly, precipitation_alert
 from app.core.config import get_settings
 from app.db.dieta_models import allenamento_table
 from app.db.models import (
@@ -22,7 +22,14 @@ from app.db.models import (
     SnackTemplateEntry,
     TrainingSession as TrainingSessionModel,
 )
-from app.schemas.common import HomeSummary, MenuDay, TrainingActivityDetail, TrainingSessionOut, WeatherSnapshot
+from app.schemas.common import (
+    HomeSummary,
+    HourlyForecast,
+    MenuDay,
+    TrainingActivityDetail,
+    TrainingSessionOut,
+    WeatherSnapshot,
+)
 from app.services import cache
 from app.services.quotes import quote_of_day
 
@@ -66,12 +73,12 @@ async def get_home_meal_today() -> str | None:
 
 
 async def get_weather() -> WeatherSnapshot | None:
-    """Meteo attuale per WEATHER_CITY (Open-Meteo, vedi adapters/weather.py).
-    Le coordinate della città vengono geocodificate una volta e tenute in
-    cache a lungo (non cambiano); il meteo vero e proprio ogni 15 minuti,
-    in linea con la frequenza di aggiornamento di Open-Meteo. Come gli altri
-    arricchimenti decorativi della Home, non solleva mai eccezioni: se il
-    servizio non risponde, semplicemente non mostra nulla."""
+    """Meteo attuale + prossime 4 ore + avviso pioggia/neve per WEATHER_CITY
+    (Open-Meteo, vedi adapters/weather.py). Le coordinate della città vengono
+    geocodificate una volta e tenute in cache a lungo (non cambiano); il
+    meteo vero e proprio ogni 15 minuti. Come gli altri arricchimenti
+    decorativi della Home, non solleva mai eccezioni: se il servizio non
+    risponde, semplicemente non mostra nulla."""
     if not settings.weather_city:
         return None
     try:
@@ -80,8 +87,19 @@ async def get_weather() -> WeatherSnapshot | None:
         )
         if not coords:
             return None
-        data = await cache.get_or_set("weather_current", 900, lambda: fetch_current_weather(*coords))
-        return WeatherSnapshot(**data, city=settings.weather_city)
+        raw = await cache.get_or_set("weather_raw", 900, lambda: fetch_weather_snapshot(*coords))
+
+        now = datetime.now()
+        current = raw.get("current", {})
+        current_code = current.get("weather_code")
+
+        return WeatherSnapshot(
+            temperature_c=current.get("temperature_2m"),
+            condition=condition_label(current_code),
+            city=settings.weather_city,
+            hourly=[HourlyForecast(**h) for h in parse_hourly(raw, now, count=4)],
+            precipitation_alert=precipitation_alert(raw, now, current_code),
+        )
     except Exception:
         return None
 

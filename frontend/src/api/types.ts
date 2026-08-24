@@ -95,10 +95,19 @@ export interface InventoryAlert {
   reason: string
 }
 
+export interface HourlyForecast {
+  time: string
+  temperature_c: number | null
+  condition: string | null
+  precipitation_probability: number | null
+}
+
 export interface WeatherSnapshot {
   temperature_c: number | null
   condition: string | null
   city: string | null
+  hourly: HourlyForecast[]
+  precipitation_alert: string | null
 }
 
 export interface HomeSummary {

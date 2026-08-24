@@ -132,10 +132,19 @@ class InventoryAlert(BaseModel):
     reason: str = "low_stock"
 
 
+class HourlyForecast(BaseModel):
+    time: datetime
+    temperature_c: float | None = None
+    condition: str | None = None
+    precipitation_probability: int | None = None
+
+
 class WeatherSnapshot(BaseModel):
     temperature_c: float | None = None
     condition: str | None = None
     city: str | None = None
+    hourly: list[HourlyForecast] = []
+    precipitation_alert: str | None = None  # es. "Possibile pioggia più tardi"
 
 
 class HomeSummary(BaseModel):

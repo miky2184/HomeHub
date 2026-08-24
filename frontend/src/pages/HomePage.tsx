@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem } from '../api/hooks'
 import { Card } from '../components/Card'
 import { MealList } from '../components/MealList'
+import { WeatherCard } from '../components/WeatherCard'
 import { getGreeting } from '../config'
 import { useClock } from '../hooks/useClock'
 import { inferEventIcon } from '../lib/eventIcon'
 import { currentWeekStart, toDateKey } from '../lib/date'
 import { CATEGORY_COLORS } from '../styles/categories'
-import { iconForCondition } from '../lib/weatherIcon'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -40,24 +40,10 @@ export function HomePage() {
           <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-date)', color: 'var(--cat-home-fg)', fontWeight: 700, textTransform: 'uppercase' }}>
             {date}
           </p>
-          {data.weather?.temperature_c != null && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-              {(() => {
-                const WeatherIcon = iconForCondition(data.weather.condition)
-                return <WeatherIcon size={26} />
-              })()}
-              <div>
-                <p style={{ margin: 0, fontSize: 'var(--fs-heading)', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {Math.round(data.weather.temperature_c)}°
-                </p>
-                <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>
-                  {[data.weather.condition, data.weather.city].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
+
+      {data.weather && <WeatherCard weather={data.weather} />}
 
       <Card
         label="Oggi"
