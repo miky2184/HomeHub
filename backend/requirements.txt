@@ -9,3 +9,7 @@ httpx==0.28.1
 python-dotenv==1.2.1
 APScheduler==3.11.0
 bring-api==1.1.2
+google-auth==2.56.3
+google-auth-oauthlib==1.4.0
+google-auth-httplib2==0.4.1
+google-api-python-client==2.199.0

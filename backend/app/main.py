@@ -4,6 +4,8 @@ from bring_api.exceptions import BringException
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from google.auth.exceptions import GoogleAuthError
+from googleapiclient.errors import HttpError as GoogleHttpError
 
 from app.api.routes import calendar, home, inventory, menu, shopping, training
 from app.core.config import get_settings
@@ -38,6 +40,22 @@ async def bring_exception_handler(request: Request, exc: BringException) -> JSON
     return JSONResponse(
         status_code=503,
         content={"detail": f"Bring! non raggiungibile o credenziali non valide: {exc}"},
+    )
+
+
+@app.exception_handler(GoogleAuthError)
+async def google_auth_exception_handler(request: Request, exc: GoogleAuthError) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"detail": f"Google Calendar: refresh token non valido o revocato ({exc})"},
+    )
+
+
+@app.exception_handler(GoogleHttpError)
+async def google_http_exception_handler(request: Request, exc: GoogleHttpError) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"detail": f"Google Calendar non raggiungibile: {exc}"},
     )
 
 

@@ -184,7 +184,7 @@ Tabelle indicative nello schema dedicato `homehub`:
 **Python + FastAPI**, per coerenza con le 3 web app esistenti (tutte in Python): stile di codice condiviso, possibilità di riusare modelli/utility, e un solo linguaggio lato server da mantenere.
 
 Librerie di riferimento per gli adapter:
-- **Google Calendar**: `google-api-python-client` + `google-auth-oauthlib` (OAuth2, token refresh).
+- **Google Calendar**: `google-api-python-client` + `google-auth-oauthlib` (OAuth2, token refresh) — ✅ integrato (`backend/app/adapters/google_calendar.py`); setup una tantum del refresh token in `backend/scripts/google_oauth_setup.py`.
 - **Bring!**: `bring-api` (non ufficiale, async/aiohttp) — ✅ integrato (`backend/app/adapters/bring.py`).
 - **Garmin Connect** *(fase futura)*: `python-garminconnect` (non ufficiale).
 - **Postgres**: SQLAlchemy (+ Alembic per le migrazioni dello schema `homehub`).
@@ -211,7 +211,7 @@ Ogni integrazione esterna è isolata in un modulo/adapter con la stessa interfac
 ## 10. Roadmap proposta (fasi)
 
 - **Fase 0 — Scaffolding** ✅ *(fatto)*: monorepo `frontend/` (React + Vite + TS, rail + routing per tutti i tab, TanStack Query, idle/attract mode) e `backend/` (FastAPI, adapter per tutte le fonti con dati mock finché mancano le credenziali reali, modelli/migrazione Alembic per lo schema `homehub`, route REST complete), più `docker-compose.yml` e `.env.example`. Kiosk mode (Chromium + systemd) non ancora configurato: è un passo di deploy sul NUC reale, non scaffolding di codice.
-- **Fase 1 — Backend base**: skeleton BFF, connessione al Postgres esistente (schema `homehub`), integrazione Google Calendar (lettura + aggiunta evento), Home con card calendario+meteo reali.
+- **Fase 1 — Backend base**: skeleton BFF ✅, connessione al Postgres esistente (schema `homehub`) ✅, integrazione Google Calendar (lettura + aggiunta evento) ✅ *(vedi `backend/app/adapters/google_calendar.py`)*, Home con card calendario reali ✅ — manca solo il meteo.
 - **Fase 2 — Menu & Allenamenti**: tab Menu con inserimento/modifica manuale menu scolastico + integrazione API menu di casa; tab Allenamenti con inserimento/modifica manuale del piano settimanale.
 - **Fase 3 — Spesa & Inventory**: integrazione Bring! ✅ *(fatto: lettura + spunta/aggiunta/rimozione articoli, vedi `backend/app/adapters/bring.py`)*, integrazione API home inventory (lettura + azione consumo/scarico), alert scorte in Home.
 - **Fase 4 — Finanze (opzionale) & rifiniture azioni**: tab finanze se utile, revisione UX delle azioni di scrittura (conferme, feedback visivo, gestione errori di rete verso le fonti esterne).
