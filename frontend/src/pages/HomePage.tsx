@@ -5,7 +5,7 @@ import { Card } from '../components/Card'
 import { FAMILY_MEMBER_NAME, getGreeting } from '../config'
 import { useClock } from '../hooks/useClock'
 import { inferEventIcon } from '../lib/eventIcon'
-import { currentWeekStart } from '../lib/date'
+import { currentWeekStart, toDateKey } from '../lib/date'
 import { CATEGORY_COLORS } from '../styles/categories'
 
 export function HomePage() {
@@ -76,16 +76,39 @@ export function HomePage() {
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--gap-md)' }}>
-        <Card label="Menu di casa" icon={ChefHat} category="cucina" footerLabel="Vedi menu completo" onFooterClick={() => navigate('/menu')}>
+        <Card
+          label={`Menu di casa · ${menuDayLabel(data.today_menu?.date)}`}
+          icon={ChefHat}
+          category="cucina"
+          footerLabel="Vedi menu completo"
+          onFooterClick={() => navigate('/menu')}
+        >
           <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>
             {data.today_menu?.home_meal ?? 'Da definire'}
           </p>
         </Card>
 
-        <Card label="Menu scuola" icon={ChefHat} category="scuola" footerLabel="Vedi menu mensa" onFooterClick={() => navigate('/menu')}>
+        <Card
+          label={`Menu scuola · ${menuDayLabel(data.today_menu?.date)}`}
+          icon={ChefHat}
+          category="scuola"
+          footerLabel="Vedi menu mensa"
+          onFooterClick={() => navigate('/menu')}
+        >
           <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>
             {data.today_menu?.school_meal ?? 'Da definire'}
           </p>
+          {(data.today_menu?.snack_morning || data.today_menu?.snack_afternoon) && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+              <p style={{ margin: 0, fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
+                Merenda mattina: <span style={{ color: 'var(--text-primary)' }}>{data.today_menu?.snack_morning ?? '—'}</span>
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
+                Merenda pomeriggio:{' '}
+                <span style={{ color: 'var(--text-primary)' }}>{data.today_menu?.snack_afternoon ?? '—'}</span>
+              </p>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -156,4 +179,9 @@ export function HomePage() {
       )}
     </>
   )
+}
+
+function menuDayLabel(menuDate: string | undefined): string {
+  if (!menuDate) return 'Oggi'
+  return menuDate === toDateKey(new Date()) ? 'Oggi' : 'Domani'
 }

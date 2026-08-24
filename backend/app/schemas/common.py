@@ -30,9 +30,12 @@ class CalendarEventCreate(BaseModel):
 
 
 class MenuDay(BaseModel):
+    date: date
     day_of_week: int
     school_meal: str | None = None
     home_meal: str | None = None
+    snack_morning: str | None = None
+    snack_afternoon: str | None = None
 
 
 class MenuWeek(BaseModel):
@@ -40,10 +43,37 @@ class MenuWeek(BaseModel):
     days: list[MenuDay]
 
 
-class SchoolMenuUpsert(BaseModel):
-    week_start_date: date
+class SchoolMenuTemplateEntryOut(BaseModel):
+    cycle_week: int
     day_of_week: int
     meal_text: str
+
+
+class SchoolMenuTemplateUpsert(BaseModel):
+    entries: list[SchoolMenuTemplateEntryOut]
+
+
+class SchoolMenuCycleAnchorOut(BaseModel):
+    anchor_monday: date
+    anchor_cycle_week: int
+
+
+class SnackTemplateEntryOut(BaseModel):
+    day_of_week: int
+    snack_type: str  # "mattina" | "pomeriggio"
+    snack_text: str
+
+
+class SnackTemplateUpsert(BaseModel):
+    entries: list[SnackTemplateEntryOut]
+
+
+class MenuSettings(BaseModel):
+    """Tutto quello che serve alla pagina Impostazioni per la data entry."""
+
+    school_template: list[SchoolMenuTemplateEntryOut]
+    cycle_anchor: SchoolMenuCycleAnchorOut | None
+    snacks: list[SnackTemplateEntryOut]
 
 
 class TrainingSessionOut(BaseModel):

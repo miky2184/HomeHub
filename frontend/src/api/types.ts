@@ -17,14 +17,40 @@ export interface CalendarInfo {
 }
 
 export interface MenuDay {
+  date: string
   day_of_week: number
   school_meal: string | null
   home_meal: string | null
+  snack_morning: string | null
+  snack_afternoon: string | null
 }
 
 export interface MenuWeek {
   week_start_date: string
   days: MenuDay[]
+}
+
+export interface SchoolMenuTemplateEntry {
+  cycle_week: number
+  day_of_week: number
+  meal_text: string
+}
+
+export interface SchoolMenuCycleAnchor {
+  anchor_monday: string
+  anchor_cycle_week: number
+}
+
+export interface SnackTemplateEntry {
+  day_of_week: number
+  snack_type: 'mattina' | 'pomeriggio'
+  snack_text: string
+}
+
+export interface MenuSettings {
+  school_template: SchoolMenuTemplateEntry[]
+  cycle_anchor: SchoolMenuCycleAnchor | null
+  snacks: SnackTemplateEntry[]
 }
 
 export interface TrainingSession {

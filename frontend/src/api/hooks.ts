@@ -5,8 +5,12 @@ import type {
   CalendarInfo,
   HomeSummary,
   InventoryAlert,
+  MenuSettings,
   MenuWeek,
+  SchoolMenuCycleAnchor,
+  SchoolMenuTemplateEntry,
   ShoppingItem,
+  SnackTemplateEntry,
   TrainingActivityDetail,
   TrainingSession,
 } from './types'
@@ -60,15 +64,44 @@ export function useMenuWeek(weekStartDate: string) {
   })
 }
 
-export function useUpsertSchoolMenu(weekStartDate: string) {
+export function useMenuSettings() {
+  return useQuery({
+    queryKey: ['menu-settings'],
+    queryFn: () => api.get<MenuSettings>('/api/menu/settings'),
+  })
+}
+
+function useInvalidateMenu() {
   const queryClient = useQueryClient()
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ['menu-week'] })
+    queryClient.invalidateQueries({ queryKey: ['menu-settings'] })
+    queryClient.invalidateQueries({ queryKey: ['home-summary'] })
+  }
+}
+
+export function useUpsertSchoolTemplate() {
+  const invalidate = useInvalidateMenu()
   return useMutation({
-    mutationFn: (payload: { day_of_week: number; meal_text: string }) =>
-      api.put('/api/menu/school', { week_start_date: weekStartDate, ...payload }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menu-week', weekStartDate] })
-      queryClient.invalidateQueries({ queryKey: ['home-summary'] })
-    },
+    mutationFn: (entries: SchoolMenuTemplateEntry[]) =>
+      api.put('/api/menu/settings/school-template', { entries }),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpsertSchoolAnchor() {
+  const invalidate = useInvalidateMenu()
+  return useMutation({
+    mutationFn: (payload: SchoolMenuCycleAnchor) => api.put('/api/menu/settings/school-anchor', payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpsertSnacks() {
+  const invalidate = useInvalidateMenu()
+  return useMutation({
+    mutationFn: (entries: SnackTemplateEntry[]) => api.put('/api/menu/settings/snacks', { entries }),
+    onSuccess: invalidate,
   })
 }
 

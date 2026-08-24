@@ -14,11 +14,22 @@ from app.adapters.inventory_app import InventoryAdapter
 from app.adapters.menu_app import HomeMenuAdapter
 from app.core.config import get_settings
 from app.db.dieta_models import allenamento_table
-from app.db.models import SchoolMenuEntry, TrainingSession as TrainingSessionModel
+from app.db.models import (
+    SchoolMenuCycleAnchor,
+    SchoolMenuTemplateEntry,
+    SnackTemplateEntry,
+    TrainingSession as TrainingSessionModel,
+)
 from app.schemas.common import HomeSummary, MenuDay, TrainingActivityDetail, TrainingSessionOut
 from app.services import cache
 
 settings = get_settings()
+
+# Dopo quest'ora, Home mostra il menu/le merende di domani invece che di
+# oggi (comodo la sera, per sapere cosa preparare al mattino). Il menu di
+# casa resta legato a "oggi" finché l'adapter della web app menu non sa
+# rispondere anche per una data futura (vedi adapters/menu_app.py).
+MENU_CUTOFF_HOUR = 20
 
 calendar_adapter = GoogleCalendarAdapter()
 bring_adapter = BringAdapter()
@@ -121,15 +132,70 @@ def dieta_activity_summary(activity: TrainingActivityDetail) -> str:
     return " · ".join(parts)
 
 
-def get_school_meal_today(db: Session, today: date) -> str | None:
-    week_start = _week_start(today)
+def compute_cycle_week(real_monday: date, anchor_monday: date, anchor_cycle_week: int, num_weeks: int = 4) -> int:
+    """A quale settimana del ciclo (1..num_weeks) corrisponde una settimana
+    reale, dato un punto di riferimento "da anchor_monday si parte dalla
+    settimana anchor_cycle_week". Funziona anche per settimane precedenti
+    l'ancora (differenza negativa: % in Python su interi negativi resta
+    comunque nell'intervallo [0, num_weeks), coerente con quanto serve qui)."""
+    weeks_diff = (real_monday - anchor_monday).days // 7
+    return ((anchor_cycle_week - 1 + weeks_diff) % num_weeks) + 1
+
+
+def get_school_meal(db: Session, day: date) -> str | None:
+    """Menu scolastico per un giorno, dal template a rotazione + l'ancora
+    (vedi db.models.SchoolMenuTemplateEntry/SchoolMenuCycleAnchor). None nel
+    weekend o se il template/l'ancora non sono ancora stati compilati in
+    Impostazioni."""
+    if day.weekday() > 4:  # weekend, la scuola non serve pasti
+        return None
+    anchor = db.get(SchoolMenuCycleAnchor, 1)
+    if anchor is None:
+        return None
+    cycle_week = compute_cycle_week(_week_start(day), anchor.anchor_monday, anchor.anchor_cycle_week)
     entry = db.scalar(
-        select(SchoolMenuEntry).where(
-            SchoolMenuEntry.week_start_date == week_start,
-            SchoolMenuEntry.day_of_week == today.weekday(),
+        select(SchoolMenuTemplateEntry).where(
+            SchoolMenuTemplateEntry.cycle_week == cycle_week,
+            SchoolMenuTemplateEntry.day_of_week == day.weekday(),
         )
     )
     return entry.meal_text if entry else None
+
+
+def get_snack(db: Session, day: date, snack_type: str) -> str | None:
+    """Merenda (mattina/pomeriggio) per un giorno: fissa per giorno della
+    settimana, stessa ogni settimana. None nel weekend."""
+    if day.weekday() > 4:
+        return None
+    entry = db.scalar(
+        select(SnackTemplateEntry).where(
+            SnackTemplateEntry.day_of_week == day.weekday(),
+            SnackTemplateEntry.snack_type == snack_type,
+        )
+    )
+    return entry.snack_text if entry else None
+
+
+def effective_menu_date(now: datetime) -> date:
+    """Oggi, o già domani se è tardi (vedi MENU_CUTOFF_HOUR)."""
+    if now.hour >= MENU_CUTOFF_HOUR:
+        return now.date() + timedelta(days=1)
+    return now.date()
+
+
+async def build_menu_day(db: Session, day: date) -> MenuDay:
+    """MenuDay completo per una data: menu scuola + merende dal template,
+    menu di casa solo se `day` è davvero oggi (l'adapter non sa ancora
+    rispondere per altre date)."""
+    home_meal = await get_home_meal_today() if day == date.today() else None
+    return MenuDay(
+        date=day,
+        day_of_week=day.weekday(),
+        school_meal=get_school_meal(db, day),
+        home_meal=home_meal,
+        snack_morning=get_snack(db, day, "mattina"),
+        snack_afternoon=get_snack(db, day, "pomeriggio"),
+    )
 
 
 def get_next_training(db: Session, today: date) -> TrainingSessionOut | None:
@@ -170,11 +236,10 @@ async def build_home_summary(db: Session) -> HomeSummary:
 
     inventory_alerts = await get_inventory_alerts()
 
-    school_meal = get_school_meal_today(db, today)
-    home_meal = await get_home_meal_today()
+    menu_day = await build_menu_day(db, effective_menu_date(now))
     today_menu = (
-        MenuDay(day_of_week=today.weekday(), school_meal=school_meal, home_meal=home_meal)
-        if (school_meal or home_meal)
+        menu_day
+        if any([menu_day.school_meal, menu_day.home_meal, menu_day.snack_morning, menu_day.snack_afternoon])
         else None
     )
 

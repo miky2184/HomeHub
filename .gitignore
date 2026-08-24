@@ -221,6 +221,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# --- HomeHub: macOS ---
+.DS_Store
+
 # --- HomeHub: frontend (Node/Vite) ---
 frontend/node_modules/
 frontend/dist/
