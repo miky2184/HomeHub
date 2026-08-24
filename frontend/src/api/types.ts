@@ -98,6 +98,7 @@ export interface InventoryAlert {
 export interface WeatherSnapshot {
   temperature_c: number | null
   condition: string | null
+  city: string | null
 }
 
 export interface HomeSummary {

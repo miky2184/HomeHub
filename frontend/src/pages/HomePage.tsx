@@ -1,4 +1,4 @@
-import { CalendarDays, ChefHat, Dumbbell, House, ShoppingBasket, Sun } from 'lucide-react'
+import { CalendarDays, ChefHat, Dumbbell, House, ShoppingBasket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem } from '../api/hooks'
 import { Card } from '../components/Card'
@@ -8,6 +8,7 @@ import { useClock } from '../hooks/useClock'
 import { inferEventIcon } from '../lib/eventIcon'
 import { currentWeekStart, toDateKey } from '../lib/date'
 import { CATEGORY_COLORS } from '../styles/categories'
+import { iconForCondition } from '../lib/weatherIcon'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -26,7 +27,7 @@ export function HomePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 'var(--fs-greeting)', color: 'var(--text-primary)' }}>
-            {getGreeting(now)}!
+            {getGreeting(now)}
           </h1>
           <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)', fontSize: 'var(--fs-body)' }}>
             {data.saint_of_day && `Oggi è ${data.saint_of_day}`}
@@ -40,9 +41,19 @@ export function HomePage() {
             {date}
           </p>
           {data.weather?.temperature_c != null && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', marginTop: 6, color: 'var(--text-secondary)' }}>
-              <Sun size={20} />
-              <span style={{ fontSize: 'var(--fs-heading)', fontWeight: 700 }}>{Math.round(data.weather.temperature_c)}°</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+              {(() => {
+                const WeatherIcon = iconForCondition(data.weather.condition)
+                return <WeatherIcon size={26} />
+              })()}
+              <div>
+                <p style={{ margin: 0, fontSize: 'var(--fs-heading)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {Math.round(data.weather.temperature_c)}°
+                </p>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>
+                  {[data.weather.condition, data.weather.city].filter(Boolean).join(' · ')}
+                </p>
+              </div>
             </div>
           )}
         </div>

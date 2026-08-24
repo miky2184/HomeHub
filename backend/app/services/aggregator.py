@@ -13,6 +13,7 @@ from app.adapters.google_calendar import GoogleCalendarAdapter
 from app.adapters.inventory_app import InventoryAdapter
 from app.adapters.menu_app import HomeMenuAdapter
 from app.adapters.santo_del_giorno import fetch_saint_of_day
+from app.adapters.weather import fetch_current_weather, geocode_city
 from app.core.config import get_settings
 from app.db.dieta_models import allenamento_table
 from app.db.models import (
@@ -21,7 +22,7 @@ from app.db.models import (
     SnackTemplateEntry,
     TrainingSession as TrainingSessionModel,
 )
-from app.schemas.common import HomeSummary, MenuDay, TrainingActivityDetail, TrainingSessionOut
+from app.schemas.common import HomeSummary, MenuDay, TrainingActivityDetail, TrainingSessionOut, WeatherSnapshot
 from app.services import cache
 from app.services.quotes import quote_of_day
 
@@ -62,6 +63,27 @@ async def get_inventory_alerts():
 async def get_home_meal_today() -> str | None:
     raw = await cache.get_or_set("home_meal_today", home_menu_adapter.cache_ttl, home_menu_adapter.fetch)
     return home_menu_adapter.normalize(raw)
+
+
+async def get_weather() -> WeatherSnapshot | None:
+    """Meteo attuale per WEATHER_CITY (Open-Meteo, vedi adapters/weather.py).
+    Le coordinate della città vengono geocodificate una volta e tenute in
+    cache a lungo (non cambiano); il meteo vero e proprio ogni 15 minuti,
+    in linea con la frequenza di aggiornamento di Open-Meteo. Come gli altri
+    arricchimenti decorativi della Home, non solleva mai eccezioni: se il
+    servizio non risponde, semplicemente non mostra nulla."""
+    if not settings.weather_city:
+        return None
+    try:
+        coords = await cache.get_or_set(
+            "weather_coords", 7 * 24 * 3600, lambda: geocode_city(settings.weather_city)
+        )
+        if not coords:
+            return None
+        data = await cache.get_or_set("weather_current", 900, lambda: fetch_current_weather(*coords))
+        return WeatherSnapshot(**data, city=settings.weather_city)
+    except Exception:
+        return None
 
 
 async def get_saint_of_day(day: date) -> str | None:
@@ -257,10 +279,11 @@ async def build_home_summary(db: Session) -> HomeSummary:
 
     next_training = get_next_training(db, today)
     saint_of_day = await get_saint_of_day(today)
+    weather = await get_weather()
 
     return HomeSummary(
         now=now,
-        weather=None,  # TODO: adapter meteo (es. Open-Meteo), non ancora implementato
+        weather=weather,
         saint_of_day=saint_of_day,
         quote_of_day=quote_of_day(today),
         today_events=today_events,

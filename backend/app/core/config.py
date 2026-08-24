@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # --- Schema "dieta" (stesso Postgres di homehub, altra web app) ---
     dieta_user_id: int | None = None
 
+    # --- Meteo (Open-Meteo, gratuita, senza chiave) ---
+    weather_city: str = "Milano"
+
     # --- Web app esistenti: API key per-servizio ---
     finance_app_base_url: str = ""
     finance_app_api_key: str = ""

@@ -135,6 +135,7 @@ class InventoryAlert(BaseModel):
 class WeatherSnapshot(BaseModel):
     temperature_c: float | None = None
     condition: str | None = None
+    city: str | None = None
 
 
 class HomeSummary(BaseModel):
