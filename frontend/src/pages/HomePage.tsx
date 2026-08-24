@@ -1,5 +1,6 @@
 import { CalendarDays, ChefHat, Dumbbell, House, ShoppingBasket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import type { HomeMeals } from '../api/types'
 import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem } from '../api/hooks'
 import { Card } from '../components/Card'
 import { MealList } from '../components/MealList'
@@ -9,6 +10,36 @@ import { useClock } from '../hooks/useClock'
 import { inferEventIcon } from '../lib/eventIcon'
 import { currentWeekStart, toDateKey } from '../lib/date'
 import { CATEGORY_COLORS } from '../styles/categories'
+
+// Ordine cronologico della giornata: la figlia pranza a scuola (school_meal,
+// altra card), ma gli adulti in casa fanno tutti questi pasti — mostriamo
+// solo quelli che hanno davvero un piano quel giorno, per tenere la card
+// compatta quando è pianificata solo la cena.
+const HOME_MEAL_LABELS: { key: keyof HomeMeals; label: string }[] = [
+  { key: 'breakfast', label: 'Colazione' },
+  { key: 'snack_morning', label: 'Spuntino mattina' },
+  { key: 'lunch', label: 'Pranzo' },
+  { key: 'snack_afternoon', label: 'Spuntino pomeriggio' },
+  { key: 'dinner', label: 'Cena' },
+  { key: 'snack_evening', label: 'Spuntino sera' },
+]
+
+function HomeMealsList({ meals }: { meals: HomeMeals | undefined }) {
+  const present = HOME_MEAL_LABELS.filter(({ key }) => meals?.[key])
+  if (present.length === 0) {
+    return <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>Da definire</p>
+  }
+  return (
+    <>
+      {present.map(({ key, label }, i) => (
+        <div key={key} style={{ marginTop: i > 0 ? 10 : 0 }}>
+          <p style={{ margin: '0 0 2px', fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>{label}</p>
+          <MealList text={meals![key]!} />
+        </div>
+      ))}
+    </>
+  )
+}
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -83,11 +114,7 @@ export function HomePage() {
           footerLabel="Vedi menu completo"
           onFooterClick={() => navigate('/menu')}
         >
-          {data.today_menu?.home_meal ? (
-            <MealList text={data.today_menu.home_meal} />
-          ) : (
-            <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>Da definire</p>
-          )}
+          <HomeMealsList meals={data.today_menu?.home_meals} />
         </Card>
 
         <Card

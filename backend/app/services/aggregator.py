@@ -22,6 +22,7 @@ from app.db.models import (
     TrainingSession as TrainingSessionModel,
 )
 from app.schemas.common import (
+    HomeMeals,
     HomeSummary,
     HourlyForecast,
     InventoryAlert,
@@ -102,16 +103,30 @@ def get_inventory_alerts(db: Session, today: date) -> list[InventoryAlert]:
     return alerts
 
 
-def get_home_dinner(db: Session, day: date) -> str | None:
-    """Cena di casa per un giorno, letta da dieta.menu_settimanale (altra web
-    app dell'utente sullo stesso Postgres — il piano nutrizionale copre
-    tutta la famiglia, non solo lui). Multi-riga se ci sono più portate,
-    stesso formato del menu scuola (vedi components/MealList.tsx). Sola
-    lettura, nessuna cache: query locale su Postgres, non una chiamata di
-    rete. None se non c'è una settimana di menu che copre quel giorno, o se
-    quel pasto non ha ricette assegnate."""
+# Chiavi pasto nel jsonb di dieta.menu_settimanale → campo HomeMeals
+# corrispondente. La figlia pranza a scuola (school_meal, da un'altra
+# fonte), ma gli adulti in casa fanno tutti i pasti qui, non solo la cena.
+PASTO_FIELD_MAP = {
+    "colazione": "breakfast",
+    "spuntino_mattina": "snack_morning",
+    "pranzo": "lunch",
+    "spuntino_pomeriggio": "snack_afternoon",
+    "cena": "dinner",
+    "spuntino_sera": "snack_evening",
+}
+
+
+def get_home_meals(db: Session, day: date) -> HomeMeals:
+    """Tutti i pasti di casa per un giorno (colazione, spuntini, pranzo,
+    cena), letti da dieta.menu_settimanale (altra web app dell'utente sullo
+    stesso Postgres — il piano nutrizionale copre tutta la famiglia, non
+    solo lui). Ogni pasto è multi-riga se ha più portate, stesso formato del
+    menu scuola (vedi components/MealList.tsx). Sola lettura, nessuna
+    cache: query locale su Postgres, non una chiamata di rete. Tutti i
+    campi None se non c'è una settimana di menu che copre quel giorno."""
+    empty = HomeMeals()
     if settings.dieta_user_id is None:
-        return None
+        return empty
     row = db.execute(
         select(menu_settimanale_table.c.menu).where(
             menu_settimanale_table.c.user_id == settings.dieta_user_id,
@@ -120,11 +135,16 @@ def get_home_dinner(db: Session, day: date) -> str | None:
         )
     ).first()
     if row is None or row.menu is None:
-        return None
+        return empty
     giorno_nome = GIORNI_SETTIMANA_IT[day.weekday()]
-    ricette = row.menu.get("day", {}).get(giorno_nome, {}).get("pasto", {}).get("cena", {}).get("ricette", [])
-    nomi = [r["nome_ricetta"] for r in ricette if r.get("nome_ricetta")]
-    return "\n".join(nomi) if nomi else None
+    pasti = row.menu.get("day", {}).get(giorno_nome, {}).get("pasto", {})
+
+    def meal_text(pasto_key: str) -> str | None:
+        ricette = pasti.get(pasto_key, {}).get("ricette", [])
+        nomi = [r["nome_ricetta"] for r in ricette if r.get("nome_ricetta")]
+        return "\n".join(nomi) if nomi else None
+
+    return HomeMeals(**{field: meal_text(pasto_key) for pasto_key, field in PASTO_FIELD_MAP.items()})
 
 
 async def get_weather() -> WeatherSnapshot | None:
@@ -295,15 +315,15 @@ def effective_menu_date(now: datetime) -> date:
 
 
 async def build_menu_day(db: Session, day: date) -> MenuDay:
-    """MenuDay completo per una data: menu scuola + merende dal template a
-    rotazione, cena di casa da dieta.menu_settimanale (qualunque giorno
-    rientri nella settimana generata lì, non solo oggi)."""
-    home_meal = get_home_dinner(db, day)
+    """MenuDay completo per una data: menu scuola (pranzo della figlia) +
+    merende scuola dal template a rotazione, più tutti i pasti di casa
+    (colazione/spuntini/pranzo/cena degli adulti) da dieta.menu_settimanale
+    — qualunque giorno rientri nella settimana generata lì, non solo oggi."""
     return MenuDay(
         date=day,
         day_of_week=day.weekday(),
         school_meal=get_school_meal(db, day),
-        home_meal=home_meal,
+        home_meals=get_home_meals(db, day),
         snack_morning=get_snack(db, day, "mattina"),
         snack_afternoon=get_snack(db, day, "pomeriggio"),
     )
@@ -350,7 +370,14 @@ async def build_home_summary(db: Session) -> HomeSummary:
     menu_day = await build_menu_day(db, effective_menu_date(now))
     today_menu = (
         menu_day
-        if any([menu_day.school_meal, menu_day.home_meal, menu_day.snack_morning, menu_day.snack_afternoon])
+        if any(
+            [
+                menu_day.school_meal,
+                menu_day.snack_morning,
+                menu_day.snack_afternoon,
+                *menu_day.home_meals.model_dump().values(),
+            ]
+        )
         else None
     )
 

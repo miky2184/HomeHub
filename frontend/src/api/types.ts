@@ -16,11 +16,20 @@ export interface CalendarInfo {
   label: string
 }
 
+export interface HomeMeals {
+  breakfast: string | null
+  snack_morning: string | null
+  lunch: string | null
+  snack_afternoon: string | null
+  dinner: string | null
+  snack_evening: string | null
+}
+
 export interface MenuDay {
   date: string
   day_of_week: number
   school_meal: string | null
-  home_meal: string | null
+  home_meals: HomeMeals
   snack_morning: string | null
   snack_afternoon: string | null
 }

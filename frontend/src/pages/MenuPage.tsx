@@ -43,16 +43,23 @@ export function MenuPage() {
     <>
       <h1 style={{ fontSize: 'var(--fs-greeting)', margin: '4px 0 8px' }}>Cucina — menu della settimana</h1>
       <p style={{ fontSize: 'var(--fs-label)', color: 'var(--text-muted)', margin: '0 0 8px' }}>
-        Sola lettura: il menu scuola/merende si aggiorna da Impostazioni (cambia solo un paio di volte l'anno), la
-        cena di casa dall'app dieta.
+        Sola lettura: il menu scuola/merende si aggiorna da Impostazioni (cambia solo un paio di volte l'anno), i
+        pasti di casa dall'app dieta.
       </p>
 
+      {/* La figlia pranza a scuola (school_meal); i pasti "casa" sono quelli
+          degli adulti, in ordine cronologico di giornata. */}
       {week.days.map((day) => (
         <Card key={day.day_of_week} label={DAY_LABELS[day.day_of_week]} icon={ChefHat} category="cucina">
+          <Section label="Colazione casa" value={day.home_meals.breakfast} />
+          <Row label="Spuntino mattina casa" value={day.home_meals.snack_morning} />
+          <Row label="Merenda scuola mattina" value={day.snack_morning} />
           <Section label="Pranzo scuola" value={day.school_meal} />
-          <Section label="Cena casa" value={day.home_meal} />
-          <Row label="Merenda mattina" value={day.snack_morning} />
-          <Row label="Merenda pomeriggio" value={day.snack_afternoon} />
+          <Section label="Pranzo casa" value={day.home_meals.lunch} />
+          <Row label="Spuntino pomeriggio casa" value={day.home_meals.snack_afternoon} />
+          <Row label="Merenda scuola pomeriggio" value={day.snack_afternoon} />
+          <Section label="Cena casa" value={day.home_meals.dinner} />
+          <Row label="Spuntino sera casa" value={day.home_meals.snack_evening} />
         </Card>
       ))}
     </>

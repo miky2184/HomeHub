@@ -29,13 +29,27 @@ class CalendarEventCreate(BaseModel):
     all_day: bool = False
 
 
+class HomeMeals(BaseModel):
+    """Tutti i pasti di casa di una giornata (letti da dieta.menu_settimanale
+    — il piano nutrizionale copre tutta la famiglia): la figlia pranza a
+    scuola (school_meal in MenuDay), ma gli adulti in casa fanno colazione,
+    spuntini, pranzo e cena qui."""
+
+    breakfast: str | None = None
+    snack_morning: str | None = None
+    lunch: str | None = None
+    snack_afternoon: str | None = None
+    dinner: str | None = None
+    snack_evening: str | None = None
+
+
 class MenuDay(BaseModel):
     date: date
     day_of_week: int
-    school_meal: str | None = None
-    home_meal: str | None = None
-    snack_morning: str | None = None
-    snack_afternoon: str | None = None
+    school_meal: str | None = None  # pranzo scuola della figlia
+    home_meals: HomeMeals = HomeMeals()
+    snack_morning: str | None = None  # merenda scuola della figlia (mattina)
+    snack_afternoon: str | None = None  # merenda scuola della figlia (pomeriggio)
 
 
 class MenuWeek(BaseModel):
