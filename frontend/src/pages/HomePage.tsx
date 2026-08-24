@@ -2,6 +2,7 @@ import { CalendarDays, ChefHat, Dumbbell, House, ShoppingBasket, Sun } from 'luc
 import { useNavigate } from 'react-router-dom'
 import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem } from '../api/hooks'
 import { Card } from '../components/Card'
+import { MealList } from '../components/MealList'
 import { FAMILY_MEMBER_NAME, getGreeting } from '../config'
 import { useClock } from '../hooks/useClock'
 import { inferEventIcon } from '../lib/eventIcon'
@@ -83,9 +84,11 @@ export function HomePage() {
           footerLabel="Vedi menu completo"
           onFooterClick={() => navigate('/menu')}
         >
-          <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>
-            {data.today_menu?.home_meal ?? 'Da definire'}
-          </p>
+          {data.today_menu?.home_meal ? (
+            <MealList text={data.today_menu.home_meal} />
+          ) : (
+            <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>Da definire</p>
+          )}
         </Card>
 
         <Card
@@ -95,9 +98,11 @@ export function HomePage() {
           footerLabel="Vedi menu mensa"
           onFooterClick={() => navigate('/menu')}
         >
-          <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>
-            {data.today_menu?.school_meal ?? 'Da definire'}
-          </p>
+          {data.today_menu?.school_meal ? (
+            <MealList text={data.today_menu.school_meal} />
+          ) : (
+            <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>Da definire</p>
+          )}
           {(data.today_menu?.snack_morning || data.today_menu?.snack_afternoon) && (
             <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
               <p style={{ margin: 0, fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>

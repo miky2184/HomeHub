@@ -127,11 +127,12 @@ export function SettingsPage() {
                   {WEEKDAY_LABELS.map((label, dayIndex) => (
                     <div key={dayIndex}>
                       <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>{label}</label>
-                      <input
+                      <textarea
                         value={template[`${week}-${dayIndex}`] ?? ''}
                         onChange={(e) => setTemplate((t) => ({ ...t, [`${week}-${dayIndex}`]: e.target.value }))}
-                        placeholder="Es. Pasta al pomodoro"
-                        style={{ ...inputStyle, width: '100%' }}
+                        placeholder={'Una portata per riga, es.\nPasta al pomodoro\nPolpette\nSpinaci\nFrutta'}
+                        rows={4}
+                        style={{ ...inputStyle, width: '100%', resize: 'vertical', fontFamily: 'inherit' }}
                       />
                     </div>
                   ))}

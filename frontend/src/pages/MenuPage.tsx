@@ -1,7 +1,21 @@
 import { ChefHat } from 'lucide-react'
 import { useMenuWeek } from '../api/hooks'
 import { Card } from '../components/Card'
+import { MealList } from '../components/MealList'
 import { DAY_LABELS, currentWeekStart } from '../lib/date'
+
+function Section({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div style={{ marginTop: 10 }}>
+      <p style={{ margin: '0 0 4px', fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>{label}</p>
+      {value ? (
+        <MealList text={value} />
+      ) : (
+        <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>—</p>
+      )}
+    </div>
+  )
+}
 
 function Row({ label, value }: { label: string; value: string | null }) {
   return (
@@ -34,8 +48,8 @@ export function MenuPage() {
 
       {week.days.slice(0, 5).map((day) => (
         <Card key={day.day_of_week} label={DAY_LABELS[day.day_of_week]} icon={ChefHat} category="cucina">
-          <Row label="Pranzo scuola" value={day.school_meal} />
-          <Row label="Cena casa" value={day.home_meal} />
+          <Section label="Pranzo scuola" value={day.school_meal} />
+          <Section label="Cena casa" value={day.home_meal} />
           <Row label="Merenda mattina" value={day.snack_morning} />
           <Row label="Merenda pomeriggio" value={day.snack_afternoon} />
         </Card>
