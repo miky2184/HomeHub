@@ -33,6 +33,7 @@ export interface TrainingSession {
   day_of_week: number
   session_text: string
   done: boolean
+  garmin_note: string | null
 }
 
 export interface ShoppingItem {

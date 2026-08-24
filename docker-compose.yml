@@ -12,6 +12,11 @@ services:
     build: ./backend
     env_file:
       - ./backend/.env
+    volumes:
+      # sessione Garmin (creata da scripts/garmin_login_setup.py): senza
+      # questo volume, ogni rebuild dell'immagine la perderebbe e servirebbe
+      # rifare il login/MFA manuale
+      - ./backend/.garmin_tokens:/app/.garmin_tokens
     restart: always
     # niente "ports": non deve essere raggiungibile dall'host/LAN/router,
     # solo dal container frontend tramite la rete Docker interna

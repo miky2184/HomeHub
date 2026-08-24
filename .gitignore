@@ -230,4 +230,5 @@ frontend/.env.local
 # --- HomeHub: backend ---
 backend/.env
 backend/.venv/
+backend/.garmin_tokens/
 

@@ -52,6 +52,7 @@ class TrainingSessionOut(BaseModel):
     day_of_week: int
     session_text: str
     done: bool
+    garmin_note: str | None = None  # es. "Corsa · 8.2 km · 42 min", se Garmin è configurato
 
 
 class TrainingSessionUpsert(BaseModel):

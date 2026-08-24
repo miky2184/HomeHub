@@ -21,7 +21,7 @@
 | Persistenza | **PostgreSQL già disponibile** (istanza esistente), con **schema dedicato `homehub`** (confermato) per dati manuali (menu, allenamenti), cache e config, separato dalle tabelle delle altre app |
 | Backend stack | **Python + FastAPI** (coerente con lo stack delle 3 web app esistenti, tutte in Python) |
 | Monitor | Arzopa, risoluzione **1080×1920** (verticale) — usata come riferimento per griglia/breakpoint del frontend |
-| Allenamenti | Comunicati settimanalmente dal coach via WhatsApp → **inserimento manuale** in una tab dedicata; l'utente ha già un **account Garmin**, quindi un'integrazione futura (API non ufficiale, es. `python-garminconnect`) per leggere gli allenamenti effettivamente svolti è concretamente fattibile in una fase successiva |
+| Allenamenti | Comunicati settimanalmente dal coach via WhatsApp → **inserimento manuale** in una tab dedicata; ✅ integrato anche il confronto automatico con Garmin Connect (se quel giorno c'è un'attività registrata, la sessione pianificata viene marcata "fatta" da sola) — vedi `backend/app/adapters/garmin.py` |
 | Lettura vs scrittura | La dashboard **non è di sola lettura**: deve permettere azioni (spuntare/aggiungere articoli Bring!, aggiungere eventi calendario, segnare consumi in inventory, inserire/modificare menu e allenamenti, ecc.) |
 | Multi-utente | **No**: vista unica e condivisa per tutta la famiglia, nessun login/logout — chi guarda il monitor vede/agisce direttamente, senza switch di utenza |
 | API non ufficiali | Va bene usarle in generale (non solo per Bring!), tenendo presente il rischio di breaking change e isolandole dietro gli adapter del backend |
@@ -136,7 +136,7 @@ Note di design:
 | **Home** | Riepilogo: eventi di oggi, meteo, menu del giorno, prossimo allenamento, evidenze spesa, alert inventory | Backend aggregatore (già normalizzato) |
 | **Calendario** | Vista mensile/settimanale Google Calendar, eventi dei vari membri famiglia con colori distinti | Google Calendar API (via backend, OAuth) |
 | **Menu** | Menu scolastico (inserimento manuale una volta ricevuto) + menu di casa (dalla web app esistente) | Inserimento manuale (salvato su Postgres) + API della web app menu casa |
-| **Allenamenti** | Piano settimanale allenamenti (comunicato dal coach via WA) | Inserimento manuale (salvato su Postgres); possibile evoluzione futura con sync automatico da Garmin Connect (API non ufficiale) |
+| **Allenamenti** | Piano settimanale allenamenti (comunicato dal coach via WA) | Inserimento manuale (salvato su Postgres); ✅ arricchito con sync automatico da Garmin Connect (API non ufficiale) — auto-segna "fatto" + mostra un riepilogo dell'attività reale |
 | **Spesa (Bring!)** | Lista della spesa condivisa, con possibilità di spuntare/aggiungere articoli | Bring! API (non ufficiale, via backend) |
 | **Home Inventory** | Stato scorte, alert scorte basse, azioni rapide (consumo/scarico articolo) | API della web app home inventory esistente |
 | **Finanze** *(opzionale)* | Riepilogo/situazione finanziaria | API della web app finanze esistente |
@@ -186,7 +186,7 @@ Tabelle indicative nello schema dedicato `homehub`:
 Librerie di riferimento per gli adapter:
 - **Google Calendar**: `google-api-python-client` + `google-auth-oauthlib` (OAuth2, token refresh) — ✅ integrato (`backend/app/adapters/google_calendar.py`); setup una tantum del refresh token in `backend/scripts/google_oauth_setup.py`.
 - **Bring!**: `bring-api` (non ufficiale, async/aiohttp) — ✅ integrato (`backend/app/adapters/bring.py`).
-- **Garmin Connect** *(fase futura)*: `python-garminconnect` (non ufficiale).
+- **Garmin Connect**: `garminconnect` (non ufficiale) — ✅ integrato (`backend/app/adapters/garmin.py`); setup una tantum del login/MFA in `backend/scripts/garmin_login_setup.py`.
 - **Postgres**: SQLAlchemy (+ Alembic per le migrazioni dello schema `homehub`).
 - **Scheduling/polling**: `APScheduler` (o task periodici gestiti da FastAPI + `asyncio`) per i job di refresh cache.
 
@@ -216,7 +216,7 @@ Ogni integrazione esterna è isolata in un modulo/adapter con la stessa interfac
 - **Fase 3 — Spesa & Inventory**: integrazione Bring! ✅ *(fatto: lettura + spunta/aggiunta/rimozione articoli, vedi `backend/app/adapters/bring.py`)*, integrazione API home inventory (lettura + azione consumo/scarico), alert scorte in Home.
 - **Fase 4 — Finanze (opzionale) & rifiniture azioni**: tab finanze se utile, revisione UX delle azioni di scrittura (conferme, feedback visivo, gestione errori di rete verso le fonti esterne).
 - **Fase 5 — Polish & go-live**: idle/attract mode, gestione errori/offline dei singoli adapter, dismissione MagicMirror, deploy definitivo systemd+Docker sul NUC.
-- **Fase 6 — Estensioni future**: sync automatico allenamenti da Garmin Connect (account già disponibile, integrazione concretamente fattibile), SSE per aggiornamenti push multi-dispositivo, altri moduli.
+- **Fase 6 — Estensioni future**: sync automatico allenamenti da Garmin Connect ✅ *(fatto, vedi sopra)*, SSE per aggiornamenti push multi-dispositivo, altri moduli.
 
 ---
 

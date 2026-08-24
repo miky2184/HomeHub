@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.adapters.bring import BringAdapter
+from app.adapters.garmin import GarminAdapter
 from app.adapters.google_calendar import GoogleCalendarAdapter
 from app.adapters.inventory_app import InventoryAdapter
 from app.adapters.menu_app import HomeMenuAdapter
@@ -18,6 +19,7 @@ calendar_adapter = GoogleCalendarAdapter()
 bring_adapter = BringAdapter()
 inventory_adapter = InventoryAdapter()
 home_menu_adapter = HomeMenuAdapter()
+garmin_adapter = GarminAdapter()
 
 
 def _week_start(d: date) -> date:
@@ -42,6 +44,24 @@ async def get_inventory_alerts():
 async def get_home_meal_today() -> str | None:
     raw = await cache.get_or_set("home_meal_today", home_menu_adapter.cache_ttl, home_menu_adapter.fetch)
     return home_menu_adapter.normalize(raw)
+
+
+async def get_garmin_activities_for_date(day: date) -> list[dict]:
+    """Attività Garmin di un giorno, con cache per evitare di richiamare
+    l'API ad ogni refresh della pagina Allenamenti. Non solleva eccezioni
+    verso il chiamante: se Garmin non è configurato o la chiamata fallisce
+    (sessione scaduta, rete, ecc.), ritorna semplicemente nessuna attività —
+    è un arricchimento opzionale, non deve rompere la pagina."""
+    if not garmin_adapter.is_configured:
+        return []
+    try:
+        return await cache.get_or_set(
+            f"garmin_activities_{day.isoformat()}",
+            garmin_adapter.cache_ttl,
+            lambda: garmin_adapter.fetch_activities_for_date(day),
+        )
+    except Exception:
+        return []
 
 
 def get_school_meal_today(db: Session, today: date) -> str | None:

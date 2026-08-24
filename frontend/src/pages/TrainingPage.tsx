@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Dumbbell } from 'lucide-react'
+import { Dumbbell, Watch } from 'lucide-react'
 import { useMarkTrainingDone, useTrainingWeek, useUpsertTrainingSession } from '../api/hooks'
 import { Card } from '../components/Card'
 import { DAY_LABELS, currentWeekStart } from '../lib/date'
@@ -62,6 +62,21 @@ export function TrainingPage() {
                 </label>
               )}
             </div>
+            {existing?.garmin_note && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginTop: 10,
+                  fontSize: 'var(--fs-label)',
+                  color: 'var(--cat-attivita-fg)',
+                }}
+              >
+                <Watch size={15} />
+                <span>Da Garmin: {existing.garmin_note}</span>
+              </div>
+            )}
           </Card>
         )
       })}
