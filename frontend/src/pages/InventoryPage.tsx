@@ -22,7 +22,16 @@ export function InventoryPage() {
     <>
       <h1 style={{ fontSize: 'var(--fs-greeting)', margin: '4px 0 8px' }}>Casa</h1>
       <p style={{ margin: '0 0 12px', color: 'var(--text-secondary)', fontSize: 'var(--fs-label)' }}>
-        Sola lettura: per gestire gli oggetti (aggiungere, modificare, consumare) usa l'app Home Inventory.
+        Sola lettura: per gestire gli oggetti (aggiungere, modificare, consumare) usa l'app{' '}
+        <a
+          href="https://miky2184.ddns.net:1032/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--cat-casa-fg)', fontWeight: 700, textDecoration: 'none' }}
+        >
+          Home Inventory
+        </a>
+        .
       </p>
 
       {isLoading && <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>}
