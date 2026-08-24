@@ -34,7 +34,10 @@ class Settings(BaseSettings):
     garmin_email: str = ""
     garmin_password: str = ""
 
-    # --- Schema "dieta" (stesso Postgres di homehub, altra web app) ---
+    # --- Schema "dieta" (stesso Postgres di homehub, altra web app): usato
+    # sia per gli allenamenti svolti (dieta.allenamento) sia per la cena di
+    # casa (dieta.menu_settimanale, il piano nutrizionale copre tutta la
+    # famiglia) — stesso user_id per entrambi.
     dieta_user_id: int | None = None
 
     # --- Schema "home_inventory" (stesso Postgres, altra web app: niente
@@ -53,8 +56,6 @@ class Settings(BaseSettings):
     # --- Web app esistenti: API key per-servizio ---
     finance_app_base_url: str = ""
     finance_app_api_key: str = ""
-    menu_app_base_url: str = ""
-    menu_app_api_key: str = ""
 
     # --- Cache/polling (secondi) ---
     cache_ttl_calendar: int = 300

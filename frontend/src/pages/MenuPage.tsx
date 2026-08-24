@@ -43,10 +43,11 @@ export function MenuPage() {
     <>
       <h1 style={{ fontSize: 'var(--fs-greeting)', margin: '4px 0 8px' }}>Cucina — menu della settimana</h1>
       <p style={{ fontSize: 'var(--fs-label)', color: 'var(--text-muted)', margin: '0 0 8px' }}>
-        Sola lettura: il menu scuola/merende si aggiorna da Impostazioni (cambia solo un paio di volte l'anno).
+        Sola lettura: il menu scuola/merende si aggiorna da Impostazioni (cambia solo un paio di volte l'anno), la
+        cena di casa dall'app dieta.
       </p>
 
-      {week.days.slice(0, 5).map((day) => (
+      {week.days.map((day) => (
         <Card key={day.day_of_week} label={DAY_LABELS[day.day_of_week]} icon={ChefHat} category="cucina">
           <Section label="Pranzo scuola" value={day.school_meal} />
           <Section label="Cena casa" value={day.home_meal} />

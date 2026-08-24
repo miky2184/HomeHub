@@ -10,11 +10,10 @@ from sqlalchemy.orm import Session
 from app.adapters.bring import BringAdapter
 from app.adapters.garmin import GarminAdapter
 from app.adapters.google_calendar import GoogleCalendarAdapter
-from app.adapters.menu_app import HomeMenuAdapter
 from app.adapters.santo_del_giorno import fetch_saint_of_day
 from app.adapters.weather import condition_label, fetch_weather_snapshot, geocode_city, parse_hourly, precipitation_alert
 from app.core.config import get_settings
-from app.db.dieta_models import allenamento_table
+from app.db.dieta_models import GIORNI_SETTIMANA_IT, allenamento_table, menu_settimanale_table
 from app.db.home_inventory_models import containers_table, items_table
 from app.db.models import (
     SchoolMenuCycleAnchor,
@@ -37,14 +36,11 @@ from app.services.quotes import quote_of_day
 settings = get_settings()
 
 # Dopo quest'ora, Home mostra il menu/le merende di domani invece che di
-# oggi (comodo la sera, per sapere cosa preparare al mattino). Il menu di
-# casa resta legato a "oggi" finché l'adapter della web app menu non sa
-# rispondere anche per una data futura (vedi adapters/menu_app.py).
+# oggi (comodo la sera, per sapere cosa preparare al mattino).
 MENU_CUTOFF_HOUR = 20
 
 calendar_adapter = GoogleCalendarAdapter()
 bring_adapter = BringAdapter()
-home_menu_adapter = HomeMenuAdapter()
 garmin_adapter = GarminAdapter()
 
 # Soglia per gli alert di scadenza in Home: solo scaduti o in scadenza entro
@@ -106,9 +102,29 @@ def get_inventory_alerts(db: Session, today: date) -> list[InventoryAlert]:
     return alerts
 
 
-async def get_home_meal_today() -> str | None:
-    raw = await cache.get_or_set("home_meal_today", home_menu_adapter.cache_ttl, home_menu_adapter.fetch)
-    return home_menu_adapter.normalize(raw)
+def get_home_dinner(db: Session, day: date) -> str | None:
+    """Cena di casa per un giorno, letta da dieta.menu_settimanale (altra web
+    app dell'utente sullo stesso Postgres — il piano nutrizionale copre
+    tutta la famiglia, non solo lui). Multi-riga se ci sono più portate,
+    stesso formato del menu scuola (vedi components/MealList.tsx). Sola
+    lettura, nessuna cache: query locale su Postgres, non una chiamata di
+    rete. None se non c'è una settimana di menu che copre quel giorno, o se
+    quel pasto non ha ricette assegnate."""
+    if settings.dieta_user_id is None:
+        return None
+    row = db.execute(
+        select(menu_settimanale_table.c.menu).where(
+            menu_settimanale_table.c.user_id == settings.dieta_user_id,
+            menu_settimanale_table.c.data_inizio <= day,
+            menu_settimanale_table.c.data_fine >= day,
+        )
+    ).first()
+    if row is None or row.menu is None:
+        return None
+    giorno_nome = GIORNI_SETTIMANA_IT[day.weekday()]
+    ricette = row.menu.get("day", {}).get(giorno_nome, {}).get("pasto", {}).get("cena", {}).get("ricette", [])
+    nomi = [r["nome_ricetta"] for r in ricette if r.get("nome_ricetta")]
+    return "\n".join(nomi) if nomi else None
 
 
 async def get_weather() -> WeatherSnapshot | None:
@@ -279,10 +295,10 @@ def effective_menu_date(now: datetime) -> date:
 
 
 async def build_menu_day(db: Session, day: date) -> MenuDay:
-    """MenuDay completo per una data: menu scuola + merende dal template,
-    menu di casa solo se `day` è davvero oggi (l'adapter non sa ancora
-    rispondere per altre date)."""
-    home_meal = await get_home_meal_today() if day == date.today() else None
+    """MenuDay completo per una data: menu scuola + merende dal template a
+    rotazione, cena di casa da dieta.menu_settimanale (qualunque giorno
+    rientri nella settimana generata lì, non solo oggi)."""
+    home_meal = get_home_dinner(db, day)
     return MenuDay(
         date=day,
         day_of_week=day.weekday(),

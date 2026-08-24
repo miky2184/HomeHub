@@ -23,9 +23,9 @@ router = APIRouter(prefix="/api/menu", tags=["menu"])
 @router.get("/week", response_model=MenuWeek)
 async def get_week_menu(week_start_date: date, db: Session = Depends(get_db)) -> MenuWeek:
     """Settimana completa (lun-dom): menu scuola + merende dal template a
-    rotazione, menu di casa solo per il giorno che è davvero oggi (vedi
+    rotazione, cena di casa da dieta.menu_settimanale (vedi
     services/aggregator.build_menu_day). Sola lettura: la data entry vive in
-    Impostazioni (endpoint /settings sotto), non qui."""
+    Impostazioni (endpoint /settings sotto) o nella web app dieta, non qui."""
     days = [await build_menu_day(db, week_start_date + timedelta(days=i)) for i in range(7)]
     return MenuWeek(week_start_date=week_start_date, days=days)
 

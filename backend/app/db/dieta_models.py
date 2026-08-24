@@ -10,6 +10,7 @@ Base condivisa con app.db.models (che invece sono le tabelle di HomeHub).
 """
 
 from sqlalchemy import BigInteger, Column, Date, Float, Integer, MetaData, Table, Text
+from sqlalchemy.dialects.postgresql import JSONB
 
 dieta_metadata = MetaData(schema="dieta")
 
@@ -35,3 +36,25 @@ allenamento_table = Table(
     Column("swolf", Float),
     Column("frequenza_vogate", Float),
 )
+
+# Menu di casa (cena): il piano nutrizionale che l'utente genera/gestisce
+# nella web app "dieta" copre tutta la famiglia, non solo lui — HomeHub
+# legge da qui la cena del giorno per la Home/Cucina. Struttura della
+# colonna jsonb `menu` (vedi dieta/app/services/menu_services.py):
+# menu["day"][<nome giorno IT senza accenti>]["pasto"][<colazione|
+# spuntino_mattina|pranzo|spuntino_pomeriggio|cena|spuntino_sera>]
+# = {"ids": [...], "ricette": [{"nome_ricetta": ..., ...}, ...]}
+menu_settimanale_table = Table(
+    "menu_settimanale",
+    dieta_metadata,
+    Column("id", Integer, primary_key=True),
+    Column("data_inizio", Date),
+    Column("data_fine", Date),
+    Column("menu", JSONB),
+    Column("user_id", BigInteger),
+)
+
+# Chiavi giorno usate nel jsonb "menu", nello stesso ordine di date.weekday()
+# (0=lunedì ... 6=domenica) — nomi italiani minuscoli senza accenti, esatti
+# come scritti da dieta/app/routes/menu_giornaliero_route.py.
+GIORNI_SETTIMANA_IT = ["lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica"]

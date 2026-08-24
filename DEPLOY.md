@@ -32,6 +32,11 @@ Apri `backend/.env` e compila **almeno**:
   GRANT USAGE ON SCHEMA home_inventory TO homehub;
   GRANT SELECT ON home_inventory.items, home_inventory.containers TO homehub;
   ```
+- Stesso discorso per `dieta.menu_settimanale` (cena di casa) — se non è già coperta dal grant fatto per `dieta.allenamento`:
+  ```sql
+  GRANT USAGE ON SCHEMA dieta TO homehub;
+  GRANT SELECT ON dieta.menu_settimanale TO homehub;
+  ```
 
 ## 3. Creare lo schema `homehub` sul Postgres
 
