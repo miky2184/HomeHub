@@ -87,6 +87,8 @@ curl http://localhost:8444/api/health
 
 Poi apri `http://localhost:8444` (o `http://IP_NUC:8444`) nel browser: dovresti vedere la Home con rail laterale, calendario/spesa/inventory con dati di esempio, e menu/allenamenti vuoti finché non li compili tu dalla UI.
 
+> **Fuso orario del container**: `backend/Dockerfile` imposta esplicitamente `TZ=Europe/Rome` (con `tzdata` installato), perché l'immagine base `python:3.12-slim` di default gira in UTC. Senza questo, `datetime.now()` nel backend resta sfasato di 1-2 ore rispetto all'ora locale italiana — bug reale riscontrato nel meteo (l'elenco delle prossime ore mostrava anche ore già passate). Se in futuro sposti il deploy su un host con un fuso di sistema diverso, ricordati che questa impostazione vive nel Dockerfile, non nel `docker-compose.yml`.
+
 ## Esposizione su internet (port forwarding)
 
 > ⚠️ **Stato attuale: Basic Auth disattivata temporaneamente** (commentata in `frontend/nginx.conf`), su richiesta esplicita per poter lavorare da remoto senza il blocco del popup su Chrome/Edge. In questo momento la porta **8444** è raggiungibile da chiunque su internet **senza alcuna autenticazione**, in lettura e scrittura (calendario, spesa, inventory, ecc.). Da ripristinare prima di lasciare l'accesso esterno attivo stabilmente — o, più semplice, rimuovere la regola di port forward sul router quando l'accesso da fuori casa non serve più (vedi nota in cima a `frontend/nginx.conf` per come riattivarla).

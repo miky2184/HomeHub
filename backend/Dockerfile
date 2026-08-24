@@ -1,5 +1,17 @@
 FROM python:3.12-slim
 
+# Il container di base è in UTC. Tutta l'app (aggregator, cutoff orari,
+# confronto con gli orari locali restituiti da Open-Meteo con timezone=auto,
+# ecc.) usa datetime.now() assumendo l'ora locale italiana: impostiamo quindi
+# esplicitamente il fuso del container, altrimenti datetime.now() resta in
+# UTC e ogni confronto con "adesso" risulta sfasato di 1-2 ore.
+ENV TZ=Europe/Rome
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY requirements.txt .
