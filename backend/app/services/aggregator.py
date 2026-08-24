@@ -2,6 +2,7 @@
 tabelle manuali (menu scolastico, allenamenti) dal Postgres dedicato."""
 
 import asyncio
+import logging
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import select
@@ -41,6 +42,7 @@ from app.services import cache
 from app.services.quotes import quote_of_day
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 # Dopo quest'ora, Home mostra il menu/le merende di domani invece che di
 # oggi (comodo la sera, per sapere cosa preparare al mattino).
@@ -182,6 +184,7 @@ async def get_finance_summary(db: Session) -> FinanceSummary | None:
         raw = await cache.get_or_set("finance_budget", finance_adapter.cache_ttl, finance_adapter.fetch)
         categories = finance_adapter.normalize(raw)
     except Exception:
+        logger.exception("Finanze: fetch/normalize budget-forecast-all fallito")
         categories = []
     try:
         dare_avere_raw = await cache.get_or_set(
@@ -189,6 +192,7 @@ async def get_finance_summary(db: Session) -> FinanceSummary | None:
         )
         upcoming_expenses = parse_upcoming_expenses(dare_avere_raw)
     except Exception:
+        logger.exception("Finanze: fetch/parse dare_avere fallito")
         upcoming_expenses = []
     return FinanceSummary(categories=categories, upcoming_expenses=upcoming_expenses)
 
