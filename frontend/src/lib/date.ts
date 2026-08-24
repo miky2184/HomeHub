@@ -12,3 +12,55 @@ export function currentWeekStart(): string {
 export function todayDayOfWeek(): number {
   return (new Date().getDay() + 6) % 7
 }
+
+export function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
+
+/** Chiave locale YYYY-MM-DD (niente conversione UTC: evita che un evento
+ * vicino a mezzanotte finisca nel giorno sbagliato per via del fuso). */
+export function toDateKey(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+/** I 7 giorni (lunedì-domenica) della settimana che contiene referenceDate. */
+export function getWeekDates(referenceDate: Date): Date[] {
+  const day = (referenceDate.getDay() + 6) % 7
+  const monday = new Date(referenceDate)
+  monday.setHours(0, 0, 0, 0)
+  monday.setDate(referenceDate.getDate() - day)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return d
+  })
+}
+
+/** Griglia del mese (year, month 0-indexed) come settimane lunedì-domenica
+ * complete, incluse le code del mese precedente/successivo. */
+export function getMonthGrid(year: number, month: number): Date[][] {
+  const firstOfMonth = new Date(year, month, 1)
+  const firstWeekday = (firstOfMonth.getDay() + 6) % 7
+  const gridStart = new Date(year, month, 1 - firstWeekday)
+
+  const lastOfMonth = new Date(year, month + 1, 0)
+  const lastWeekday = (lastOfMonth.getDay() + 6) % 7
+  const gridEnd = new Date(year, month, lastOfMonth.getDate() + (6 - lastWeekday))
+
+  const weeks: Date[][] = []
+  let cursor = new Date(gridStart)
+  while (cursor <= gridEnd) {
+    const week = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(cursor)
+      d.setDate(cursor.getDate() + i)
+      return d
+    })
+    weeks.push(week)
+    cursor = new Date(cursor)
+    cursor.setDate(cursor.getDate() + 7)
+  }
+  return weeks
+}
