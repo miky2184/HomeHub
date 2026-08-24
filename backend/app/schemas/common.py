@@ -53,6 +53,7 @@ class TrainingSessionOut(BaseModel):
     session_text: str
     done: bool
     garmin_note: str | None = None  # es. "Corsa · 8.2 km · 42 min", se svolta (da dieta.allenamento)
+    sport_type: str | None = None  # es. "running", per l'icona in UI — da dieta.allenamento o dal piano Garmin
 
 
 class TrainingActivityDetail(BaseModel):

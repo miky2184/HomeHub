@@ -84,11 +84,12 @@ async def _empty_calendar() -> dict:
     return {"calendarItems": []}
 
 
-async def get_garmin_scheduled_title(day: date) -> str | None:
-    """Titolo dell'allenamento assegnato su Garmin per quel giorno (se
-    l'utente lo ha creato e assegnato lì — vedi docstring in adapters/garmin.py)."""
+async def get_garmin_scheduled_workout(day: date) -> dict | None:
+    """{"title": ..., "sport_type": ...} dell'allenamento assegnato su Garmin
+    per quel giorno (se l'utente lo ha creato e assegnato lì — vedi docstring
+    in adapters/garmin.py), o None se non c'è nulla."""
     calendar_month = await _get_garmin_calendar_month(day.year, day.month)
-    return GarminAdapter.scheduled_titles_by_date(calendar_month).get(day.isoformat())
+    return GarminAdapter.scheduled_workouts_by_date(calendar_month).get(day.isoformat())
 
 
 def get_dieta_activity(db: Session, day: date) -> TrainingActivityDetail | None:

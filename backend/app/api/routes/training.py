@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.base import get_db
 from app.db.models import TrainingSession as TrainingSessionModel
 from app.schemas.common import TrainingActivityDetail, TrainingSessionOut, TrainingSessionUpsert
-from app.services.aggregator import dieta_activity_summary, get_dieta_activity, get_garmin_scheduled_title
+from app.services.aggregator import dieta_activity_summary, get_dieta_activity, get_garmin_scheduled_workout
 
 router = APIRouter(prefix="/api/training", tags=["training"])
 
@@ -37,7 +37,8 @@ async def get_week_training(week_start_date: date, db: Session = Depends(get_db)
         session_date = week_start_date + timedelta(days=day_of_week)
         session = existing.get(day_of_week)
 
-        garmin_title = await get_garmin_scheduled_title(session_date)
+        scheduled = await get_garmin_scheduled_workout(session_date)
+        garmin_title = scheduled["title"] if scheduled else None
         # Il futuro non ha ancora attività svolte: ha senso controllare
         # dieta.allenamento solo per oggi o giorni già passati.
         activity = get_dieta_activity(db, session_date) if session_date <= today else None
@@ -70,6 +71,9 @@ async def get_week_training(week_start_date: date, db: Session = Depends(get_db)
                 db.commit()
 
         garmin_note = dieta_activity_summary(activity) if activity else None
+        # Priorità allo sport dell'attività SVOLTA (dato certo) sul quello
+        # solo pianificato, se per qualche motivo differiscono.
+        sport_type = (activity.tipo if activity else None) or (scheduled["sport_type"] if scheduled else None)
 
         results.append(
             TrainingSessionOut(
@@ -79,6 +83,7 @@ async def get_week_training(week_start_date: date, db: Session = Depends(get_db)
                 session_text=session.session_text,
                 done=session.done,
                 garmin_note=garmin_note,
+                sport_type=sport_type,
             )
         )
     return results

@@ -34,6 +34,7 @@ export interface TrainingSession {
   session_text: string
   done: boolean
   garmin_note: string | null
+  sport_type: string | null
 }
 
 export interface TrainingActivityDetail {

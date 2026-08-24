@@ -79,16 +79,22 @@ class GarminAdapter(SourceAdapter):
         return client.get_scheduled_workouts(year, month)
 
     @staticmethod
-    def scheduled_titles_by_date(calendar_month: dict) -> dict[str, str]:
-        """Data (YYYY-MM-DD) -> titolo allenamento assegnato quel giorno.
-        Se più allenamenti sono assegnati allo stesso giorno, i titoli
-        vengono uniti con " + "."""
+    def scheduled_workouts_by_date(calendar_month: dict) -> dict[str, dict]:
+        """Data (YYYY-MM-DD) -> {"title": ..., "sport_type": ...} per
+        l'allenamento assegnato quel giorno. Se più allenamenti sono
+        assegnati allo stesso giorno, i titoli vengono uniti con " + " e si
+        tiene lo sport_type del primo (nella pratica è sempre lo stesso)."""
         titles: dict[str, list[str]] = {}
+        sport_types: dict[str, str] = {}
         for item in calendar_month.get("calendarItems", []):
             if item.get("itemType") != "workout" or not item.get("title"):
                 continue
             titles.setdefault(item["date"], []).append(item["title"].strip())
-        return {day: " + ".join(dict.fromkeys(names)) for day, names in titles.items()}
+            sport_types.setdefault(item["date"], item.get("sportTypeKey"))
+        return {
+            day: {"title": " + ".join(dict.fromkeys(names)), "sport_type": sport_types.get(day)}
+            for day, names in titles.items()
+        }
 
     async def fetch(self) -> list[dict]:
         raise NotImplementedError("Usare fetch_calendar_month: Garmin non ha un concetto di 'lista unica'")

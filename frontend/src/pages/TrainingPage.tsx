@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Dumbbell, Watch } from 'lucide-react'
+import { BedDouble, Watch } from 'lucide-react'
 import { useTrainingWeek } from '../api/hooks'
 import { ActivityDetailModal } from '../components/ActivityDetailModal'
 import { Card } from '../components/Card'
 import { DAY_LABELS, currentWeekStart } from '../lib/date'
+import { iconForSportType } from '../lib/trainingIcon'
 
 export function TrainingPage() {
   const weekStart = currentWeekStart()
@@ -34,10 +35,11 @@ export function TrainingPage() {
 
       {DAY_LABELS.map((label, dayIndex) => {
         const session = sessions.find((s) => s.day_of_week === dayIndex)
+        const icon = session ? iconForSportType(session.sport_type) : BedDouble
         return (
-          <Card key={dayIndex} label={label} icon={Dumbbell} category="attivita">
+          <Card key={dayIndex} label={label} icon={icon} category="attivita">
             {!session ? (
-              <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>—</p>
+              <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-muted)' }}>Riposo</p>
             ) : (
               <div
                 onClick={() =>
