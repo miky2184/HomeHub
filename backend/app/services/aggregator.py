@@ -12,6 +12,7 @@ from app.adapters.garmin import GarminAdapter
 from app.adapters.google_calendar import GoogleCalendarAdapter
 from app.adapters.inventory_app import InventoryAdapter
 from app.adapters.menu_app import HomeMenuAdapter
+from app.adapters.santo_del_giorno import fetch_saint_of_day
 from app.core.config import get_settings
 from app.db.dieta_models import allenamento_table
 from app.db.models import (
@@ -22,6 +23,7 @@ from app.db.models import (
 )
 from app.schemas.common import HomeSummary, MenuDay, TrainingActivityDetail, TrainingSessionOut
 from app.services import cache
+from app.services.quotes import quote_of_day
 
 settings = get_settings()
 
@@ -60,6 +62,16 @@ async def get_inventory_alerts():
 async def get_home_meal_today() -> str | None:
     raw = await cache.get_or_set("home_meal_today", home_menu_adapter.cache_ttl, home_menu_adapter.fetch)
     return home_menu_adapter.normalize(raw)
+
+
+async def get_saint_of_day(day: date) -> str | None:
+    """Santo del giorno da santodelgiorno.it, con cache di 24h (cambia una
+    volta al giorno). Se il servizio non è raggiungibile, nessun errore
+    verso il chiamante: è un dettaglio decorativo in Home, non deve romperla."""
+    try:
+        return await cache.get_or_set(f"saint_{day.isoformat()}", 24 * 3600, lambda: fetch_saint_of_day(day))
+    except Exception:
+        return None
 
 
 async def _get_garmin_calendar_month(year: int, month: int) -> dict:
@@ -244,10 +256,13 @@ async def build_home_summary(db: Session) -> HomeSummary:
     )
 
     next_training = get_next_training(db, today)
+    saint_of_day = await get_saint_of_day(today)
 
     return HomeSummary(
         now=now,
         weather=None,  # TODO: adapter meteo (es. Open-Meteo), non ancora implementato
+        saint_of_day=saint_of_day,
+        quote_of_day=quote_of_day(today),
         today_events=today_events,
         today_menu=today_menu,
         next_training=next_training,

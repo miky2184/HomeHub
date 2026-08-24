@@ -103,6 +103,8 @@ export interface WeatherSnapshot {
 export interface HomeSummary {
   now: string
   weather: WeatherSnapshot | null
+  saint_of_day: string | null
+  quote_of_day: string | null
   today_events: CalendarEvent[]
   today_menu: MenuDay | null
   next_training: TrainingSession | null

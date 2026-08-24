@@ -140,6 +140,8 @@ class WeatherSnapshot(BaseModel):
 class HomeSummary(BaseModel):
     now: datetime
     weather: WeatherSnapshot | None = None
+    saint_of_day: str | None = None  # es. "San Bartolomeo" (santodelgiorno.it)
+    quote_of_day: str | None = None  # proverbio italiano, rotazione per giorno dell'anno
     today_events: list[CalendarEvent]
     today_menu: MenuDay | None = None
     next_training: TrainingSessionOut | None = None

@@ -29,7 +29,9 @@ export function HomePage() {
             {getGreeting(now)} {FAMILY_MEMBER_NAME}!
           </h1>
           <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)', fontSize: 'var(--fs-body)' }}>
-            Ecco cosa c'è oggi in casa.
+            {data.saint_of_day && `Oggi è ${data.saint_of_day}`}
+            {data.saint_of_day && data.quote_of_day && ' · '}
+            {data.quote_of_day && `"${data.quote_of_day}"`}
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
