@@ -73,18 +73,22 @@ async def get_home_meal_today() -> str | None:
 
 
 async def get_weather() -> WeatherSnapshot | None:
-    """Meteo attuale + prossime 4 ore + avviso pioggia/neve per WEATHER_CITY
-    (Open-Meteo, vedi adapters/weather.py). Le coordinate della città vengono
-    geocodificate una volta e tenute in cache a lungo (non cambiano); il
-    meteo vero e proprio ogni 15 minuti. Come gli altri arricchimenti
-    decorativi della Home, non solleva mai eccezioni: se il servizio non
-    risponde, semplicemente non mostra nulla."""
-    if not settings.weather_city:
-        return None
+    """Meteo attuale + prossime 4 ore + avviso pioggia/neve (Open-Meteo, vedi
+    adapters/weather.py). Se WEATHER_LATITUDE/LONGITUDE sono configurate,
+    hanno la priorità (coordinate esatte di casa, niente geocoding); altrimenti
+    si geocodifica WEATHER_CITY una volta e si tiene in cache a lungo (non
+    cambia). Il meteo vero e proprio viene comunque aggiornato ogni 15 minuti.
+    Come gli altri arricchimenti decorativi della Home, non solleva mai
+    eccezioni: se il servizio non risponde, semplicemente non mostra nulla."""
     try:
-        coords = await cache.get_or_set(
-            "weather_coords", 7 * 24 * 3600, lambda: geocode_city(settings.weather_city)
-        )
+        if settings.weather_latitude is not None and settings.weather_longitude is not None:
+            coords = (settings.weather_latitude, settings.weather_longitude)
+        elif settings.weather_city:
+            coords = await cache.get_or_set(
+                "weather_coords", 7 * 24 * 3600, lambda: geocode_city(settings.weather_city)
+            )
+        else:
+            return None
         if not coords:
             return None
         raw = await cache.get_or_set("weather_raw", 900, lambda: fetch_weather_snapshot(*coords))

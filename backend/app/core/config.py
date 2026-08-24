@@ -38,7 +38,13 @@ class Settings(BaseSettings):
     dieta_user_id: int | None = None
 
     # --- Meteo (Open-Meteo, gratuita, senza chiave) ---
+    # weather_city è sempre usata come etichetta mostrata in UI. Se
+    # weather_latitude/longitude sono compilate, hanno la priorità per il
+    # meteo vero e proprio (niente geocoding, coordinate esatte di casa
+    # invece del centro città) — altrimenti si geocodifica weather_city.
     weather_city: str = "Milano"
+    weather_latitude: float | None = None
+    weather_longitude: float | None = None
 
     # --- Web app esistenti: API key per-servizio ---
     finance_app_base_url: str = ""
