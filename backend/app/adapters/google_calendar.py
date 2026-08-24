@@ -126,10 +126,17 @@ class GoogleCalendarAdapter(WritableSourceAdapter):
     def normalize(self, raw: list[dict]) -> list[CalendarEvent]:
         return [CalendarEvent(**item) for item in raw]
 
-    async def perform_action(self, action: str, payload: dict) -> CalendarEvent:
-        if action != "add_event":
-            raise ValueError(f"Azione non supportata: {action}")
+    async def perform_action(self, action: str, payload: dict) -> CalendarEvent | None:
+        if action == "add_event":
+            return self._add_event(payload)
+        if action == "update_event":
+            return self._update_event(payload)
+        if action == "delete_event":
+            self._delete_event(payload)
+            return None
+        raise ValueError(f"Azione non supportata: {action}")
 
+    def _add_event(self, payload: dict) -> CalendarEvent:
         if not self.is_configured:
             return CalendarEvent(
                 id="mock-new-event",
@@ -160,6 +167,49 @@ class GoogleCalendarAdapter(WritableSourceAdapter):
             end=end,
             all_day=all_day,
         )
+
+    def _update_event(self, payload: dict) -> CalendarEvent:
+        """Sostituisce titolo/orario/tipo per intero (stessi campi di
+        CalendarEventCreate, vedi CalendarEventUpdate) — niente PATCH
+        parziale: più semplice e coerente col form di modifica, che li
+        mostra/invia sempre tutti insieme."""
+        calendar_id, event_id = payload["calendar_id"], payload["event_id"]
+        start, end = payload["start"], payload["end"]
+        all_day = payload.get("all_day", False)
+
+        if not self.is_configured:
+            return CalendarEvent(
+                id=event_id,
+                calendar_id=calendar_id,
+                calendar_label="Famiglia",
+                title=payload["title"],
+                start=start,
+                end=end,
+                all_day=all_day,
+            )
+
+        service = self._get_service()
+        body = {
+            "summary": payload["title"],
+            "start": {"date": start.date().isoformat()} if all_day else {"dateTime": start.isoformat()},
+            "end": {"date": end.date().isoformat()} if all_day else {"dateTime": end.isoformat()},
+        }
+        updated = service.events().patch(calendarId=calendar_id, eventId=event_id, body=body).execute()
+        return CalendarEvent(
+            id=updated["id"],
+            calendar_id=calendar_id,
+            calendar_label=self._label_for(service, calendar_id),
+            title=updated.get("summary", payload["title"]),
+            start=start,
+            end=end,
+            all_day=all_day,
+        )
+
+    def _delete_event(self, payload: dict) -> None:
+        if not self.is_configured:
+            return
+        service = self._get_service()
+        service.events().delete(calendarId=payload["calendar_id"], eventId=payload["event_id"]).execute()
 
     @staticmethod
     def _mock_events() -> list[dict]:

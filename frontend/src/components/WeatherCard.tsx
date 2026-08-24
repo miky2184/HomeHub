@@ -3,6 +3,8 @@ import type { WeatherSnapshot } from '../api/types'
 import { iconForCondition } from '../lib/weatherIcon'
 import { Card } from './Card'
 
+const DAY_AHEAD_LABELS = ['Domani', 'Dopodomani']
+
 function formatHour(iso: string): string {
   return `${new Date(iso).getHours()}:00`
 }
@@ -64,6 +66,29 @@ export function WeatherCard({ weather }: { weather: WeatherSnapshot }) {
           <span style={{ fontSize: 'var(--fs-label)', fontWeight: 700, color: 'var(--warning)' }}>
             {weather.precipitation_alert}
           </span>
+        </div>
+      )}
+
+      {weather.daily.length > 0 && (
+        <div style={{ display: 'flex', gap: 20, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+          {weather.daily.map((d, i) => {
+            const DayIcon = iconForCondition(d.condition)
+            return (
+              <div key={d.date} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                <DayIcon size={24} />
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-label)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {DAY_AHEAD_LABELS[i] ?? ''}
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>
+                    {d.temperature_min != null && d.temperature_max != null
+                      ? `${Math.round(d.temperature_min)}° / ${Math.round(d.temperature_max)}°`
+                      : '—'}
+                  </p>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </Card>

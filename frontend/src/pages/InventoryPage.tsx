@@ -1,7 +1,9 @@
-import { House } from 'lucide-react'
-import { useInventoryAlerts } from '../api/hooks'
+import { useState } from 'react'
+import { Check, House, ShoppingCart } from 'lucide-react'
+import { useAddShoppingItem, useInventoryAlerts } from '../api/hooks'
 import { Card } from '../components/Card'
 import type { InventoryAlert } from '../api/types'
+import { ghostButtonStyle } from '../styles/controls'
 
 const REASON_LABEL: Record<InventoryAlert['reason'], string> = {
   expired: 'Scaduto',
@@ -17,6 +19,21 @@ const REASON_COLOR: Record<InventoryAlert['reason'], string> = {
 
 export function InventoryPage() {
   const { data: alerts, isLoading } = useInventoryAlerts()
+  const addShoppingItem = useAddShoppingItem()
+  // Solo un feedback visivo locale ("Aggiunto ✓"): non c'è un modo per
+  // sapere se un nome è già sulla lista Bring! senza interrogarla, e non
+  // è comunque un problema — aggiungere due volte lo stesso nome aggiorna
+  // la voce invece di duplicarla (vedi adapters/bring.py:save_item).
+  const [added, setAdded] = useState<Set<number>>(new Set())
+
+  function handleAddToBring(alert: InventoryAlert) {
+    const specification =
+      alert.quantity != null ? `${alert.quantity} ${alert.unit ?? ''}`.trim() : undefined
+    addShoppingItem.mutate(
+      { name: alert.item_name, specification },
+      { onSuccess: () => setAdded((prev) => new Set(prev).add(alert.id)) }
+    )
+  }
 
   return (
     <>
@@ -40,8 +57,8 @@ export function InventoryPage() {
 
       {(alerts ?? []).map((alert) => (
         <Card key={alert.id} label={REASON_LABEL[alert.reason]} icon={House} category="casa" variant="warning">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text-primary)' }}>
                 {alert.item_name}
                 {alert.quantity != null ? ` — ${alert.quantity} ${alert.unit ?? ''}` : ''}
@@ -52,9 +69,26 @@ export function InventoryPage() {
                 </p>
               )}
             </div>
-            <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: REASON_COLOR[alert.reason] }}>
-              {expiryLabel(alert.days_to_expiry)}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+              <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: REASON_COLOR[alert.reason] }}>
+                {expiryLabel(alert.days_to_expiry)}
+              </span>
+              {added.has(alert.id) ? (
+                <span
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--accent)', fontSize: 'var(--fs-label)', fontWeight: 700 }}
+                >
+                  <Check size={16} /> Aggiunto
+                </span>
+              ) : (
+                <button
+                  onClick={() => handleAddToBring(alert)}
+                  disabled={addShoppingItem.isPending}
+                  style={{ ...ghostButtonStyle, display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <ShoppingCart size={16} /> Aggiungi a Bring!
+                </button>
+              )}
+            </div>
           </div>
         </Card>
       ))}

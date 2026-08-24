@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.adapters.google_calendar import GoogleCalendarAdapter
-from app.schemas.common import CalendarEvent, CalendarEventCreate, CalendarInfo
+from app.schemas.common import CalendarEvent, CalendarEventCreate, CalendarEventUpdate, CalendarInfo
 from app.services import cache
 from app.services.aggregator import calendar_adapter, get_calendar_events
 
@@ -27,3 +27,20 @@ async def add_event(payload: CalendarEventCreate) -> CalendarEvent:
     event = await adapter.perform_action("add_event", payload.model_dump())
     cache.invalidate("calendar_events")
     return event
+
+
+@router.patch("/events/{event_id}", response_model=CalendarEvent)
+async def update_event(event_id: str, payload: CalendarEventUpdate) -> CalendarEvent:
+    adapter: GoogleCalendarAdapter = calendar_adapter
+    event = await adapter.perform_action("update_event", {"event_id": event_id, **payload.model_dump()})
+    cache.invalidate("calendar_events")
+    return event
+
+
+@router.delete("/events/{event_id}", status_code=204)
+async def delete_event(event_id: str, calendar_id: str) -> None:
+    """calendar_id come query param: un evento Google Calendar è sempre
+    scoped a un calendario specifico, serve per sapere dove cercarlo."""
+    adapter: GoogleCalendarAdapter = calendar_adapter
+    await adapter.perform_action("delete_event", {"event_id": event_id, "calendar_id": calendar_id})
+    cache.invalidate("calendar_events")

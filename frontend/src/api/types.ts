@@ -114,11 +114,20 @@ export interface HourlyForecast {
   precipitation_probability: number | null
 }
 
+export interface DailyForecast {
+  date: string
+  condition: string | null
+  temperature_min: number | null
+  temperature_max: number | null
+  precipitation_probability_max: number | null
+}
+
 export interface WeatherSnapshot {
   temperature_c: number | null
   condition: string | null
   city: string | null
   hourly: HourlyForecast[]
+  daily: DailyForecast[]
   precipitation_alert: string | null
 }
 

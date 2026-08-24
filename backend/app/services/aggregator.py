@@ -13,7 +13,14 @@ from app.adapters.finance import FinanceAdapter, parse_upcoming_expenses
 from app.adapters.garmin import GarminAdapter
 from app.adapters.google_calendar import GoogleCalendarAdapter
 from app.adapters.santo_del_giorno import fetch_saint_of_day
-from app.adapters.weather import condition_label, fetch_weather_snapshot, geocode_city, parse_hourly, precipitation_alert
+from app.adapters.weather import (
+    condition_label,
+    fetch_weather_snapshot,
+    geocode_city,
+    parse_daily,
+    parse_hourly,
+    precipitation_alert,
+)
 from app.core.config import get_settings
 from app.db.dieta_models import GIORNI_SETTIMANA_IT, allenamento_table, menu_settimanale_table
 from app.db.home_inventory_models import containers_table, items_table
@@ -26,6 +33,7 @@ from app.db.models import (
     TrainingSession as TrainingSessionModel,
 )
 from app.schemas.common import (
+    DailyForecast,
     FinanceSummary,
     HomeMeals,
     HomeSummary,
@@ -242,8 +250,8 @@ def get_home_meals(db: Session, day: date) -> HomeMeals:
 
 
 async def get_weather() -> WeatherSnapshot | None:
-    """Meteo attuale + prossime 4 ore + avviso pioggia/neve (Open-Meteo, vedi
-    adapters/weather.py). Se WEATHER_LATITUDE/LONGITUDE sono configurate,
+    """Meteo attuale + prossime 4 ore + prossimi 2 giorni + avviso pioggia/
+    neve (Open-Meteo, vedi adapters/weather.py). Se WEATHER_LATITUDE/LONGITUDE sono configurate,
     hanno la priorità (coordinate esatte di casa, niente geocoding); altrimenti
     si geocodifica WEATHER_CITY una volta e si tiene in cache a lungo (non
     cambia). Il meteo vero e proprio viene comunque aggiornato ogni 15 minuti.
@@ -271,6 +279,7 @@ async def get_weather() -> WeatherSnapshot | None:
             condition=condition_label(current_code),
             city=settings.weather_city,
             hourly=[HourlyForecast(**h) for h in parse_hourly(raw, now, count=4)],
+            daily=[DailyForecast(**d) for d in parse_daily(raw, now.date(), count=2)],
             precipitation_alert=precipitation_alert(raw, now, current_code),
         )
     except Exception:

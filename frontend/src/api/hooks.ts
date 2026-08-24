@@ -58,6 +58,39 @@ export function useAddCalendarEvent() {
   })
 }
 
+export function useUpdateCalendarEvent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...payload
+    }: {
+      id: string
+      calendar_id: string
+      title: string
+      start: string
+      end: string
+      all_day?: boolean
+    }) => api.patch<CalendarEvent>(`/api/calendar/events/${id}`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
+      queryClient.invalidateQueries({ queryKey: ['home-summary'] })
+    },
+  })
+}
+
+export function useDeleteCalendarEvent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, calendarId }: { id: string; calendarId: string }) =>
+      api.delete<void>(`/api/calendar/events/${id}?calendar_id=${encodeURIComponent(calendarId)}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
+      queryClient.invalidateQueries({ queryKey: ['home-summary'] })
+    },
+  })
+}
+
 // --- Menu ---
 
 export function useMenuWeek(weekStartDate: string) {

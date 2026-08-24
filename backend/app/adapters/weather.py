@@ -2,17 +2,20 @@
 verificata a mano prima di integrarla:
 - geocoding: https://geocoding-api.open-meteo.com/v1/search?name=Milano
   → {"results": [{"latitude": ..., "longitude": ..., ...}]}
-- previsioni (attuale + orarie in una sola chiamata):
+- previsioni (attuale + orarie + giornaliere in una sola chiamata):
   https://api.open-meteo.com/v1/forecast?latitude=...&longitude=...
     &current=temperature_2m,weather_code
     &hourly=temperature_2m,weather_code,precipitation_probability
-  → {"current": {...}, "hourly": {"time": [...], "temperature_2m": [...], ...}}
-  (array paralleli, un valore per ogni ora — verificato a mano).
+    &daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max
+    &forecast_days=3
+  → {"current": {...}, "hourly": {"time": [...], ...}, "daily": {"time": ["2026-08-24", ...], ...}}
+  (array paralleli — "daily.time" sono date, non date-ora, e il primo
+  elemento è sempre oggi; verificato a mano).
 
 "weather_code" è lo standard WMO (stessa codifica ovunque): mappato qui a
 una breve descrizione in italiano (tabella ufficiale Open-Meteo)."""
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import httpx
 
@@ -75,10 +78,11 @@ async def geocode_city(city: str) -> tuple[float, float] | None:
 
 
 async def fetch_weather_snapshot(latitude: float, longitude: float) -> dict:
-    """Meteo attuale + previsioni orarie (oggi e domani), in un'unica
-    chiamata. Ritorna dati grezzi (dict); services/aggregator.py li elabora
-    in HourlyForecast/l'avviso pioggia-neve, per tenere questo adapter
-    semplice e senza logica di dominio."""
+    """Meteo attuale + previsioni orarie + giornaliere (oggi e i 2 giorni
+    successivi), in un'unica chiamata. Ritorna dati grezzi (dict);
+    services/aggregator.py li elabora in HourlyForecast/DailyForecast/
+    l'avviso pioggia-neve, per tenere questo adapter semplice e senza
+    logica di dominio."""
     async with httpx.AsyncClient(timeout=5.0) as client:
         response = await client.get(
             FORECAST_URL,
@@ -87,7 +91,8 @@ async def fetch_weather_snapshot(latitude: float, longitude: float) -> dict:
                 "longitude": longitude,
                 "current": "temperature_2m,weather_code",
                 "hourly": "temperature_2m,weather_code,precipitation_probability",
-                "forecast_days": 2,
+                "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+                "forecast_days": 3,
                 "timezone": "auto",
             },
         )
@@ -119,6 +124,37 @@ def parse_hourly(raw: dict, now: datetime, count: int) -> list[dict]:
                 "temperature_c": temps[i] if i < len(temps) else None,
                 "condition": condition_label(codes[i] if i < len(codes) else None),
                 "precipitation_probability": probs[i] if i < len(probs) else None,
+            }
+        )
+        if len(result) >= count:
+            break
+    return result
+
+
+def parse_daily(raw: dict, today: date, count: int) -> list[dict]:
+    """I prossimi `count` giorni DA DOMANI in poi (oggi è già coperto dalla
+    card principale + dalle prossime ore, qui evitiamo di ripeterlo) come
+    lista di dict pronti per DailyForecast. "daily.time" sono date pure
+    (YYYY-MM-DD), non date-ora."""
+    daily = raw.get("daily", {})
+    dates = daily.get("time", [])
+    codes = daily.get("weather_code", [])
+    temps_max = daily.get("temperature_2m_max", [])
+    temps_min = daily.get("temperature_2m_min", [])
+    probs_max = daily.get("precipitation_probability_max", [])
+
+    result = []
+    for i, date_str in enumerate(dates):
+        day = date.fromisoformat(date_str)
+        if day <= today:
+            continue
+        result.append(
+            {
+                "date": day,
+                "condition": condition_label(codes[i] if i < len(codes) else None),
+                "temperature_min": temps_min[i] if i < len(temps_min) else None,
+                "temperature_max": temps_max[i] if i < len(temps_max) else None,
+                "precipitation_probability_max": probs_max[i] if i < len(probs_max) else None,
             }
         )
         if len(result) >= count:

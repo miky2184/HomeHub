@@ -30,6 +30,18 @@ class CalendarEventCreate(BaseModel):
     all_day: bool = False
 
 
+class CalendarEventUpdate(BaseModel):
+    """Stessi campi di CalendarEventCreate: la modifica sostituisce sempre
+    titolo/orario/tipo per intero (niente PATCH parziale), coerente col
+    form di modifica che li mostra/invia tutti insieme."""
+
+    calendar_id: str
+    title: str
+    start: datetime
+    end: datetime
+    all_day: bool = False
+
+
 class HomeMeals(BaseModel):
     """Tutti i pasti di casa di una giornata (letti da dieta.menu_settimanale
     — il piano nutrizionale copre tutta la famiglia): la figlia pranza a
@@ -162,11 +174,20 @@ class HourlyForecast(BaseModel):
     precipitation_probability: int | None = None
 
 
+class DailyForecast(BaseModel):
+    date: date
+    condition: str | None = None
+    temperature_min: float | None = None
+    temperature_max: float | None = None
+    precipitation_probability_max: int | None = None
+
+
 class WeatherSnapshot(BaseModel):
     temperature_c: float | None = None
     condition: str | None = None
     city: str | None = None
     hourly: list[HourlyForecast] = []
+    daily: list[DailyForecast] = []  # da domani in poi, oggi già coperto da hourly
     precipitation_alert: str | None = None  # es. "Possibile pioggia più tardi"
 
 
