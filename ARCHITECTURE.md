@@ -185,7 +185,7 @@ Tabelle indicative nello schema dedicato `homehub`:
 
 Librerie di riferimento per gli adapter:
 - **Google Calendar**: `google-api-python-client` + `google-auth-oauthlib` (OAuth2, token refresh).
-- **Bring!**: `python-bring-api` (o equivalente non ufficiale mantenuto).
+- **Bring!**: `bring-api` (non ufficiale, async/aiohttp) — ✅ integrato (`backend/app/adapters/bring.py`).
 - **Garmin Connect** *(fase futura)*: `python-garminconnect` (non ufficiale).
 - **Postgres**: SQLAlchemy (+ Alembic per le migrazioni dello schema `homehub`).
 - **Scheduling/polling**: `APScheduler` (o task periodici gestiti da FastAPI + `asyncio`) per i job di refresh cache.
@@ -213,7 +213,7 @@ Ogni integrazione esterna è isolata in un modulo/adapter con la stessa interfac
 - **Fase 0 — Scaffolding** ✅ *(fatto)*: monorepo `frontend/` (React + Vite + TS, rail + routing per tutti i tab, TanStack Query, idle/attract mode) e `backend/` (FastAPI, adapter per tutte le fonti con dati mock finché mancano le credenziali reali, modelli/migrazione Alembic per lo schema `homehub`, route REST complete), più `docker-compose.yml` e `.env.example`. Kiosk mode (Chromium + systemd) non ancora configurato: è un passo di deploy sul NUC reale, non scaffolding di codice.
 - **Fase 1 — Backend base**: skeleton BFF, connessione al Postgres esistente (schema `homehub`), integrazione Google Calendar (lettura + aggiunta evento), Home con card calendario+meteo reali.
 - **Fase 2 — Menu & Allenamenti**: tab Menu con inserimento/modifica manuale menu scolastico + integrazione API menu di casa; tab Allenamenti con inserimento/modifica manuale del piano settimanale.
-- **Fase 3 — Spesa & Inventory**: integrazione Bring! (lettura + spunta/aggiunta articoli), integrazione API home inventory (lettura + azione consumo/scarico), alert scorte in Home.
+- **Fase 3 — Spesa & Inventory**: integrazione Bring! ✅ *(fatto: lettura + spunta/aggiunta/rimozione articoli, vedi `backend/app/adapters/bring.py`)*, integrazione API home inventory (lettura + azione consumo/scarico), alert scorte in Home.
 - **Fase 4 — Finanze (opzionale) & rifiniture azioni**: tab finanze se utile, revisione UX delle azioni di scrittura (conferme, feedback visivo, gestione errori di rete verso le fonti esterne).
 - **Fase 5 — Polish & go-live**: idle/attract mode, gestione errori/offline dei singoli adapter, dismissione MagicMirror, deploy definitivo systemd+Docker sul NUC.
 - **Fase 6 — Estensioni future**: sync automatico allenamenti da Garmin Connect (account già disponibile, integrazione concretamente fattibile), SSE per aggiornamenti push multi-dispositivo, altri moduli.

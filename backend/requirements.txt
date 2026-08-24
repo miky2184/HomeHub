@@ -8,3 +8,4 @@ alembic==1.17.1
 httpx==0.28.1
 python-dotenv==1.2.1
 APScheduler==3.11.0
+bring-api==1.1.2
