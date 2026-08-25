@@ -175,6 +175,7 @@ export interface TodoSummary {
 
 export interface HomeSummary {
   now: string
+  family_name: string
   weather: WeatherSnapshot | null
   saint_of_day: string | null
   quote_of_day: string | null
@@ -185,4 +186,41 @@ export interface HomeSummary {
   shopping_total_count: number
   inventory_alerts: InventoryAlert[]
   todos: TodoSummary
+}
+
+// Impostazioni: config effettiva (.env + override salvati da qui, vedi
+// backend/app/core/runtime_settings.py). I campi segreto non tornano mai
+// col valore vero, solo "<campo>_set" per sapere se sono sovrascritti.
+export interface AppSettings {
+  family_name: string
+  weather_city: string
+  weather_latitude: number | null
+  weather_longitude: number | null
+  background_theme: string
+  google_client_id: string
+  google_client_secret_set: boolean
+  google_refresh_token_set: boolean
+  google_calendar_ids: string[]
+  bring_email: string
+  bring_password_set: boolean
+  garmin_email: string
+  garmin_password_set: boolean
+}
+
+// PATCH parziale: solo i campi presenti vengono toccati. "" o null = rimuove
+// l'override e torna a .env; per i campi segreto, ometterli = non toccare.
+export interface AppSettingsUpdate {
+  family_name?: string
+  weather_city?: string
+  weather_latitude?: number | null
+  weather_longitude?: number | null
+  background_theme?: string
+  google_client_id?: string
+  google_client_secret?: string
+  google_refresh_token?: string
+  google_calendar_ids?: string[] | null
+  bring_email?: string
+  bring_password?: string
+  garmin_email?: string
+  garmin_password?: string
 }

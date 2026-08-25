@@ -26,6 +26,27 @@ export function toDateKey(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
+/** Data di un giorno del piano allenamenti, dato lunedì della settimana
+ * (YYYY-MM-DD, formato backend) e l'indice 0=lunedì...6=domenica. */
+export function dateFromWeek(weekStartDate: string, dayOfWeek: number): Date {
+  const [y, m, d] = weekStartDate.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  date.setDate(date.getDate() + dayOfWeek)
+  return date
+}
+
+/** Etichetta leggibile per una data vicina: "Oggi" | "Domani" | "Lunedì 3/9"
+ * (get_next_training garantisce sempre oggi o un giorno futuro, mai
+ * passato, quindi niente caso "scaduto" da gestire qui). */
+export function relativeDayLabel(date: Date): string {
+  const today = new Date()
+  if (isSameDay(date, today)) return 'Oggi'
+  const tomorrow = new Date(today)
+  tomorrow.setDate(today.getDate() + 1)
+  if (isSameDay(date, tomorrow)) return 'Domani'
+  return `${DAY_LABELS[(date.getDay() + 6) % 7]} ${date.getDate()}/${date.getMonth() + 1}`
+}
+
 /** I 7 giorni (lunedì-domenica) della settimana che contiene referenceDate. */
 export function getWeekDates(referenceDate: Date): Date[] {
   const day = (referenceDate.getDay() + 6) % 7

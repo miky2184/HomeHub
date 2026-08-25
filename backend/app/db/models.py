@@ -100,7 +100,12 @@ class TodoItem(Base):
 
 
 class AppConfig(Base):
-    """Config runtime non sensibile (i secret restano in .env, mai qui)."""
+    """Config runtime key/value, sovrascrivibile dalla pagina Impostazioni:
+    se una chiave è presente qui (e non vuota) vince sul corrispondente
+    campo di .env — incluse le credenziali delle integrazioni (Google/
+    Bring!/Garmin), scelta esplicita dell'utente per poterle gestire da UI
+    senza toccare il file sul NUC. Vedi app/core/runtime_settings.py (unico
+    lettore) e api/routes/settings.py (unico scrittore)."""
 
     __tablename__ = "app_config"
 

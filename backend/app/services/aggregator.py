@@ -20,6 +20,7 @@ from app.adapters.weather import (
     precipitation_alert,
 )
 from app.core.config import get_settings
+from app.core.runtime_settings import effective_settings
 from app.db.dieta_models import GIORNI_SETTIMANA_IT, allenamento_table, menu_settimanale_table
 from app.db.home_inventory_models import categories_table, containers_table, items_table
 from app.db.models import (
@@ -278,18 +279,22 @@ def get_home_meals(db: Session, day: date) -> HomeMeals:
 
 async def get_weather() -> WeatherSnapshot | None:
     """Meteo attuale + prossime 4 ore + prossimi 2 giorni + avviso pioggia/
-    neve (Open-Meteo, vedi adapters/weather.py). Se WEATHER_LATITUDE/LONGITUDE sono configurate,
-    hanno la priorità (coordinate esatte di casa, niente geocoding); altrimenti
-    si geocodifica WEATHER_CITY una volta e si tiene in cache a lungo (non
-    cambia). Il meteo vero e proprio viene comunque aggiornato ogni 15 minuti.
-    Come gli altri arricchimenti decorativi della Home, non solleva mai
+    neve (Open-Meteo, vedi adapters/weather.py). weather_city/latitude/
+    longitude vengono da Impostazioni se compilate, altrimenti da .env (vedi
+    core/runtime_settings.py). Se latitude/longitude sono compilate, hanno
+    la priorità (coordinate esatte di casa, niente geocoding); altrimenti si
+    geocodifica weather_city una volta e si tiene in cache a lungo (non
+    cambia — invalidata da api/routes/settings.py se questi campi cambiano).
+    Il meteo vero e proprio viene comunque aggiornato ogni 15 minuti. Come
+    gli altri arricchimenti decorativi della Home, non solleva mai
     eccezioni: se il servizio non risponde, semplicemente non mostra nulla."""
     try:
-        if settings.weather_latitude is not None and settings.weather_longitude is not None:
-            coords = (settings.weather_latitude, settings.weather_longitude)
-        elif settings.weather_city:
+        es = effective_settings()
+        if es.weather_latitude is not None and es.weather_longitude is not None:
+            coords = (es.weather_latitude, es.weather_longitude)
+        elif es.weather_city:
             coords = await cache.get_or_set(
-                "weather_coords", 7 * 24 * 3600, lambda: geocode_city(settings.weather_city)
+                "weather_coords", 7 * 24 * 3600, lambda: geocode_city(es.weather_city)
             )
         else:
             return None
@@ -304,7 +309,7 @@ async def get_weather() -> WeatherSnapshot | None:
         return WeatherSnapshot(
             temperature_c=current.get("temperature_2m"),
             condition=condition_label(current_code),
-            city=settings.weather_city,
+            city=es.weather_city,
             hourly=[HourlyForecast(**h) for h in parse_hourly(raw, now, count=4)],
             daily=[DailyForecast(**d) for d in parse_daily(raw, now.date(), count=2)],
             precipitation_alert=precipitation_alert(raw, now, current_code),
@@ -518,6 +523,7 @@ async def build_home_summary(db: Session) -> HomeSummary:
 
     return HomeSummary(
         now=now,
+        family_name=effective_settings().family_name,
         weather=weather,
         saint_of_day=saint_of_day,
         quote_of_day=quote_of_day(today),

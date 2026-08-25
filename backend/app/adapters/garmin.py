@@ -40,6 +40,7 @@ from garminconnect import Garmin, GarminConnectAuthenticationError, GarminConnec
 
 from app.adapters.base import SourceAdapter
 from app.core.config import get_settings
+from app.core.runtime_settings import effective_settings
 
 settings = get_settings()
 
@@ -54,11 +55,13 @@ class GarminAdapter(SourceAdapter):
 
     @property
     def is_configured(self) -> bool:
-        return bool(settings.garmin_email and settings.garmin_password)
+        es = effective_settings()
+        return bool(es.garmin_email and es.garmin_password)
 
     def _get_client(self) -> Garmin:
         if self._client is None:
-            client = Garmin(settings.garmin_email, settings.garmin_password)
+            es = effective_settings()
+            client = Garmin(es.garmin_email, es.garmin_password)
             # Nessun prompt_mfa passato di proposito: a runtime, se serve
             # davvero un MFA, deve fallire in modo chiaro (nessun terminale
             # interattivo qui), non restare in attesa di un input che non

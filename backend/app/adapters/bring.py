@@ -22,6 +22,7 @@ from bring_api import Bring, BringItemsResponse
 
 from app.adapters.base import WritableSourceAdapter
 from app.core.config import get_settings
+from app.core.runtime_settings import effective_settings
 from app.schemas.common import ShoppingItem
 
 settings = get_settings()
@@ -43,14 +44,18 @@ class BringAdapter(WritableSourceAdapter):
 
     @property
     def is_configured(self) -> bool:
-        return bool(settings.bring_email and settings.bring_password)
+        es = effective_settings()
+        return bool(es.bring_email and es.bring_password)
 
     async def _get_client(self) -> tuple[Bring, str]:
-        """Login e selezione lista lazy, riutilizzate tra le chiamate
-        (evita di autenticarsi ad ogni richiesta)."""
+        """Login e selezione lista lazy, riutilizzate tra le chiamate (evita
+        di autenticarsi ad ogni richiesta). Se le credenziali cambiano da
+        Impostazioni, api/routes/settings.py chiama aclose() per farle
+        rileggere qui alla prossima chiamata."""
         if self._bring is None:
+            es = effective_settings()
             self._session = aiohttp.ClientSession()
-            self._bring = Bring(self._session, settings.bring_email, settings.bring_password)
+            self._bring = Bring(self._session, es.bring_email, es.bring_password)
             await self._bring.login()
         if self._list_uuid is None:
             lists = (await self._bring.load_lists()).lists
@@ -62,11 +67,16 @@ class BringAdapter(WritableSourceAdapter):
         return self._bring, self._list_uuid
 
     async def aclose(self) -> None:
-        """Chiude la sessione HTTP: da chiamare allo shutdown dell'app."""
+        """Chiude la sessione HTTP e azzera tutto lo stato cache (client
+        autenticato + lista selezionata) — da chiamare sia allo shutdown
+        dell'app sia quando le credenziali cambiano da Impostazioni (senza
+        azzerare _list_uuid, dopo un cambio account resterebbe puntata alla
+        lista dell'account precedente)."""
         if self._session is not None:
             await self._session.close()
             self._session = None
             self._bring = None
+        self._list_uuid = None
 
     async def fetch(self) -> list[dict]:
         if not self.is_configured:

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type {
+  AppSettings,
+  AppSettingsUpdate,
   CalendarEvent,
   CalendarInfo,
   HomeSummary,
@@ -293,6 +295,29 @@ export function useDeleteTodo() {
   return useMutation({
     mutationFn: (id: number) => api.delete<void>(`/api/todos/${id}`),
     onSuccess: invalidate,
+  })
+}
+
+// --- Impostazioni (nome famiglia, meteo, palette, credenziali integrazioni:
+// se salvate qui vincono su .env, vedi backend/app/core/runtime_settings.py) ---
+
+export function useAppSettings() {
+  return useQuery({
+    queryKey: ['app-settings'],
+    queryFn: () => api.get<AppSettings>('/api/settings'),
+    staleTime: 60_000,
+  })
+}
+
+export function useUpdateAppSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: AppSettingsUpdate) => api.put<AppSettings>('/api/settings', payload),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['app-settings'], data)
+      // Nome famiglia e meteo compaiono anche in Home.
+      queryClient.invalidateQueries({ queryKey: ['home-summary'] })
+    },
   })
 }
 

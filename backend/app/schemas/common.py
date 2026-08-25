@@ -255,6 +255,7 @@ class TodoSummary(BaseModel):
 
 class HomeSummary(BaseModel):
     now: datetime
+    family_name: str = ""  # da Impostazioni, mostrato nel saluto in Home
     weather: WeatherSnapshot | None = None
     saint_of_day: str | None = None  # es. "San Bartolomeo" (santodelgiorno.it)
     quote_of_day: str | None = None  # proverbio italiano, rotazione per giorno dell'anno
@@ -265,3 +266,48 @@ class HomeSummary(BaseModel):
     shopping_total_count: int
     inventory_alerts: list[InventoryAlert]
     todos: TodoSummary
+
+
+class AppSettingsOut(BaseModel):
+    """Config effettiva (env + override), per popolare il form in
+    Impostazioni. I campi segreto non tornano mai col valore vero: solo
+    "<campo>_set" per sapere se è sovrascritto da qui (true) o si sta usando
+    .env (false) — vedi runtime_settings.SECRET_FIELDS."""
+
+    family_name: str = ""
+    weather_city: str = "Milano"
+    weather_latitude: float | None = None
+    weather_longitude: float | None = None
+    background_theme: str = ""
+    google_client_id: str = ""
+    google_client_secret_set: bool = False
+    google_refresh_token_set: bool = False
+    google_calendar_ids: list[str] = []
+    bring_email: str = ""
+    bring_password_set: bool = False
+    garmin_email: str = ""
+    garmin_password_set: bool = False
+
+
+class AppSettingsUpdate(BaseModel):
+    """PATCH parziale: solo i campi inviati vengono toccati (vedi
+    exclude_unset in api/routes/settings.py). Per un campo inviato,
+    stringa vuota/None = rimuovi l'override e torna a .env; qualunque altro
+    valore = sovrascrivi. Per i campi segreto, lasciare il form vuoto invia
+    semplicemente il campo non impostato nel payload (nessuna modifica);
+    serve un'azione esplicita di "ripristina .env" nel frontend per inviare
+    la stringa vuota e cancellare l'override."""
+
+    family_name: str | None = None
+    weather_city: str | None = None
+    weather_latitude: float | None = None
+    weather_longitude: float | None = None
+    background_theme: str | None = None
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    google_refresh_token: str | None = None
+    google_calendar_ids: list[str] | None = None
+    bring_email: str | None = None
+    bring_password: str | None = None
+    garmin_email: str | None = None
+    garmin_password: str | None = None

@@ -19,6 +19,7 @@ from googleapiclient.errors import HttpError
 
 from app.adapters.base import WritableSourceAdapter
 from app.core.config import get_settings
+from app.core.runtime_settings import effective_settings
 from app.schemas.common import CalendarEvent
 
 settings = get_settings()
@@ -40,23 +41,25 @@ class GoogleCalendarAdapter(WritableSourceAdapter):
 
     @property
     def is_configured(self) -> bool:
-        return bool(
-            settings.google_refresh_token and settings.google_client_id and settings.google_client_secret
-        )
+        es = effective_settings()
+        return bool(es.google_refresh_token and es.google_client_id and es.google_client_secret)
 
     def _get_service(self):
         """Costruisce (e mette in cache) il client Calendar. Il refresh
         dell'access token è comunque automatico ad ogni chiamata da parte
         della libreria (finché il refresh token resta valido); lo facciamo
         anche qui una volta per fallire subito con un errore chiaro se le
-        credenziali configurate non sono valide."""
+        credenziali configurate non sono valide. Se le credenziali cambiano
+        da Impostazioni, api/routes/settings.py azzera self._service per
+        farlo ricostruire con quelle nuove alla prossima chiamata."""
         if self._service is None:
+            es = effective_settings()
             credentials = Credentials(
                 token=None,
-                refresh_token=settings.google_refresh_token,
+                refresh_token=es.google_refresh_token,
                 token_uri="https://oauth2.googleapis.com/token",
-                client_id=settings.google_client_id,
-                client_secret=settings.google_client_secret,
+                client_id=es.google_client_id,
+                client_secret=es.google_client_secret,
                 scopes=SCOPES,
             )
             credentials.refresh(Request())
@@ -79,7 +82,10 @@ class GoogleCalendarAdapter(WritableSourceAdapter):
         if not self.is_configured:
             return [{"id": "famiglia", "label": "Famiglia"}]
         service = self._get_service()
-        return [{"id": cal_id, "label": self._label_for(service, cal_id)} for cal_id in settings.google_calendar_ids]
+        return [
+            {"id": cal_id, "label": self._label_for(service, cal_id)}
+            for cal_id in effective_settings().google_calendar_ids
+        ]
 
     async def fetch(self) -> list[dict]:
         if not self.is_configured:
@@ -95,7 +101,7 @@ class GoogleCalendarAdapter(WritableSourceAdapter):
         time_max = (now + timedelta(days=_LOOKAHEAD_DAYS)).isoformat()
 
         raw_events: list[dict] = []
-        for calendar_id in settings.google_calendar_ids:
+        for calendar_id in effective_settings().google_calendar_ids:
             label = self._label_for(service, calendar_id)
             response = (
                 service.events()

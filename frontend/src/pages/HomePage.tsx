@@ -8,7 +8,7 @@ import { WeatherCard } from '../components/WeatherCard'
 import { getGreeting } from '../config'
 import { useClock } from '../hooks/useClock'
 import { inferEventIcon } from '../lib/eventIcon'
-import { currentWeekStart, toDateKey } from '../lib/date'
+import { currentWeekStart, dateFromWeek, relativeDayLabel, toDateKey } from '../lib/date'
 import { dueDateInfo, PRIORITY_META } from '../lib/todo'
 import { CATEGORY_COLORS } from '../styles/categories'
 
@@ -60,6 +60,9 @@ export function HomePage() {
         <div>
           <h1 style={{ margin: 0, fontSize: 'var(--fs-greeting)', color: 'var(--text-primary)' }}>
             {getGreeting(now)}
+            {data.family_name && (
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}> — {data.family_name}</span>
+            )}
           </h1>
           <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)', fontSize: 'var(--fs-body)' }}>
             {data.saint_of_day && `Oggi è ${data.saint_of_day}`}
@@ -211,7 +214,12 @@ export function HomePage() {
       {data.next_training && (
         <Card label="Prossimo allenamento" icon={Dumbbell} category="attivita" footerLabel="Vedi allenamenti" onFooterClick={() => navigate('/allenamenti')}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>{data.next_training.session_text}</p>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>{data.next_training.session_text}</p>
+              <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>
+                {relativeDayLabel(dateFromWeek(data.next_training.week_start_date, data.next_training.day_of_week))}
+              </p>
+            </div>
             <button
               onClick={(e) => {
                 e.stopPropagation()

@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     environment: str = "development"
     cors_origins: list[str] = ["http://localhost:5173"]
 
+    # --- Personalizzazione da Impostazioni (nessun equivalente "di sistema":
+    # esistono solo per essere sovrascritti da app_config, vedi
+    # app/core/runtime_settings.py — questi default valgono solo se non è
+    # mai stato salvato nulla da Impostazioni) ---
+    family_name: str = ""
+    background_theme: str = ""  # chiave della palette (vedi frontend/src/lib/palette.ts), "" = predefinito
+
     # --- Postgres (istanza esistente, schema dedicato) ---
     database_url: str = "postgresql+psycopg://homehub:homehub@localhost:5432/homehub"
     database_schema: str = "homehub"

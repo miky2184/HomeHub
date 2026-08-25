@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from bring_api.exceptions import BringException
@@ -7,15 +8,33 @@ from fastapi.responses import JSONResponse
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError as GoogleHttpError
 
-from app.api.routes import calendar, home, inventory, menu, shopping, todo, training
+from app.api.routes import calendar, home, inventory, menu, settings as settings_routes, shopping, todo, training
 from app.core.config import get_settings
+from app.core.runtime_settings import refresh_overrides
+from app.db.base import SessionLocal
 from app.services.aggregator import bring_adapter
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Carica gli override salvati da Impostazioni (app_config) prima di
+    # accettare richieste, altrimenti gli adapter partirebbero con le sole
+    # credenziali di .env finché non arriva la prima chiamata a
+    # PUT /api/settings. Non blocca l'avvio se il DB non è ancora
+    # raggiungibile (stesso principio del resto dell'app: parte comunque,
+    # fallisce solo sulle rotte che dipendono da Postgres).
+    try:
+        db = SessionLocal()
+        try:
+            refresh_overrides(db)
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("Impossibile caricare gli override da Impostazioni all'avvio, uso solo .env")
+
     yield
     # chiude la sessione HTTP verso Bring! (se mai aperta), evita di lasciarla
     # appesa allo spegnimento del processo
@@ -66,6 +85,7 @@ app.include_router(training.router)
 app.include_router(shopping.router)
 app.include_router(inventory.router)
 app.include_router(todo.router)
+app.include_router(settings_routes.router)
 
 
 @app.get("/api/health")
