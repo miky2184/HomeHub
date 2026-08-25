@@ -5,7 +5,8 @@
 # forwardato su 8444 esterna/interna): il backend NON pubblica più la sua
 # porta sull'host, è raggiungibile solo dal container frontend via rete
 # Docker interna (proxy /api in frontend/nginx.conf).
-# Vedi DEPLOY.md per il modello di sicurezza e come generare .htpasswd.
+# Autenticazione: login unico dell'app (APP_PASSWORD_HASH in backend/.env),
+# non più Basic Auth di nginx — vedi DEPLOY.md §4.
 
 services:
   backend:
@@ -25,8 +26,6 @@ services:
     build: ./frontend
     ports:
       - "8444:80"
-    volumes:
-      - ./frontend/.htpasswd:/etc/nginx/.htpasswd:ro
     depends_on:
       - backend
     restart: always
