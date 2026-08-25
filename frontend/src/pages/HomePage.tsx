@@ -109,6 +109,60 @@ export function HomePage() {
               )
             })
           )}
+
+          {data.next_training && (
+            <>
+              <div style={{ borderTop: '1px solid var(--border)', margin: '10px 0' }} />
+              <div
+                onClick={() => navigate('/allenamenti')}
+                style={{ display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }}
+              >
+                <span
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    background: 'var(--cat-attivita-bg)',
+                    color: 'var(--cat-attivita-fg)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Dumbbell size={16} />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    {data.next_training.session_text}
+                  </span>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>
+                    {relativeDayLabel(dateFromWeek(data.next_training.week_start_date, data.next_training.day_of_week))}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    markTrainingDone.mutate({ id: data.next_training!.id, done: true })
+                  }}
+                  aria-label="Segna allenamento come fatto"
+                  style={{
+                    background: 'var(--cat-attivita-bg)',
+                    border: 'none',
+                    color: 'var(--cat-attivita-fg)',
+                    borderRadius: '50%',
+                    width: 36,
+                    height: 36,
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  ✓
+                </button>
+              </div>
+            </>
+          )}
         </Card>
 
         <Card
@@ -226,37 +280,6 @@ export function HomePage() {
         </p>
       </Card>
 
-      {data.next_training && (
-        <Card label="Prossimo allenamento" icon={Dumbbell} category="attivita" footerLabel="Vedi allenamenti" onFooterClick={() => navigate('/allenamenti')}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>{data.next_training.session_text}</p>
-              <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>
-                {relativeDayLabel(dateFromWeek(data.next_training.week_start_date, data.next_training.day_of_week))}
-              </p>
-            </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                markTrainingDone.mutate({ id: data.next_training!.id, done: true })
-              }}
-              aria-label="Segna come fatto"
-              style={{
-                background: 'var(--cat-attivita-bg)',
-                border: 'none',
-                color: 'var(--cat-attivita-fg)',
-                borderRadius: '50%',
-                width: 36,
-                height: 36,
-                cursor: 'pointer',
-                fontWeight: 700,
-              }}
-            >
-              ✓
-            </button>
-          </div>
-        </Card>
-      )}
     </>
   )
 }
