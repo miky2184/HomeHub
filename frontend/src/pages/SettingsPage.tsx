@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Calendar, CalendarClock, ChefHat, CloudSun, Cookie, Home, Palette, Plug, ShoppingCart, Users, Watch } from 'lucide-react'
+import { Calendar, CalendarClock, ChefHat, CloudSun, Cookie, Home, Palette, Plug, ShoppingBasket, ShoppingCart, Users, Watch } from 'lucide-react'
 import type { SchoolMenuTemplateEntry, SnackTemplateEntry } from '../api/types'
 import {
   useAppSettings,
@@ -153,9 +153,12 @@ function FamigliaAspettoSection() {
   const { data: appSettings, isLoading } = useAppSettings()
   const updateSettings = useUpdateAppSettings()
   const [familyName, setFamilyName] = useState('')
+  const [shoppingLimit, setShoppingLimit] = useState('')
 
   useEffect(() => {
-    if (appSettings) setFamilyName(appSettings.family_name)
+    if (!appSettings) return
+    setFamilyName(appSettings.family_name)
+    setShoppingLimit(String(appSettings.shopping_preview_limit))
   }, [appSettings])
 
   const currentTheme = appSettings?.background_theme || DEFAULT_BACKGROUND_THEME
@@ -177,6 +180,36 @@ function FamigliaAspettoSection() {
               style={{ ...inputStyle, flex: 1, minWidth: 220 }}
             />
             <button style={buttonStyle} onClick={() => updateSettings.mutate({ family_name: familyName.trim() })}>
+              Salva
+            </button>
+          </div>
+        )}
+      </Card>
+
+      <Card label="Lista della spesa in Home" icon={ShoppingBasket} category="home">
+        <p style={{ margin: '0 0 10px', fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
+          Quanti prodotti mostrare in anteprima nella card "Lista della spesa" in Home.
+        </p>
+        {isLoading ? (
+          <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>
+        ) : (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input
+              type="number"
+              min={0}
+              max={20}
+              value={shoppingLimit}
+              onChange={(e) => setShoppingLimit(e.target.value)}
+              style={{ ...inputStyle, width: 90 }}
+            />
+            <button
+              style={buttonStyle}
+              onClick={() =>
+                updateSettings.mutate({
+                  shopping_preview_limit: shoppingLimit.trim() ? Number(shoppingLimit) : null,
+                })
+              }
+            >
               Salva
             </button>
           </div>

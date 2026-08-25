@@ -530,7 +530,7 @@ async def build_home_summary(db: Session) -> HomeSummary:
         today_events=today_events,
         today_menu=today_menu,
         next_training=next_training,
-        shopping_preview=unchecked[:4],
+        shopping_preview=unchecked[: effective_settings().shopping_preview_limit],
         shopping_total_count=len(shopping_items),
         inventory_alerts=inventory_alerts,
         todos=todos,

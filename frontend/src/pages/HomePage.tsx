@@ -188,28 +188,43 @@ export function HomePage() {
         </Card>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--gap-md)' }}>
-        <Card label="Lista della spesa" icon={ShoppingBasket} category="spesa" footerLabel="Vedi lista" onFooterClick={() => navigate('/spesa')}>
-          <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: 'var(--cat-spesa-fg)' }}>{data.shopping_total_count}</p>
-          <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>prodotti da comprare</p>
-        </Card>
+      <Card label="Lista della spesa" icon={ShoppingBasket} category="spesa" footerLabel="Vedi lista" onFooterClick={() => navigate('/spesa')}>
+        <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: 'var(--cat-spesa-fg)' }}>{data.shopping_total_count}</p>
+        <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>prodotti da comprare</p>
 
-        <Card
-          label="Casa"
-          icon={House}
-          category="casa"
-          variant={data.inventory_alerts.length > 0 ? 'warning' : 'default'}
-          footerLabel="Vedi tutto"
-          onFooterClick={() => navigate('/inventory')}
-        >
-          <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: data.inventory_alerts.length > 0 ? 'var(--warning)' : 'var(--cat-casa-fg)' }}>
-            {data.inventory_alerts.length}
-          </p>
-          <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>
-            {data.inventory_alerts.length > 0 ? 'oggetti in scadenza' : 'niente in scadenza'}
-          </p>
-        </Card>
-      </div>
+        {data.shopping_preview.length > 0 && (
+          <>
+            <div style={{ borderTop: '1px solid var(--border)', margin: '14px 0 10px' }} />
+            {data.shopping_preview.map((item) => (
+              <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '6px 0', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={() => toggleShoppingItem.mutate(item.id)}
+                  style={{ width: 20, height: 20 }}
+                />
+                <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>{item.name}</span>
+              </label>
+            ))}
+          </>
+        )}
+      </Card>
+
+      <Card
+        label="Casa"
+        icon={House}
+        category="casa"
+        variant={data.inventory_alerts.length > 0 ? 'warning' : 'default'}
+        footerLabel="Vedi tutto"
+        onFooterClick={() => navigate('/inventory')}
+      >
+        <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: data.inventory_alerts.length > 0 ? 'var(--warning)' : 'var(--cat-casa-fg)' }}>
+          {data.inventory_alerts.length}
+        </p>
+        <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>
+          {data.inventory_alerts.length > 0 ? 'oggetti in scadenza' : 'niente in scadenza'}
+        </p>
+      </Card>
 
       {data.next_training && (
         <Card label="Prossimo allenamento" icon={Dumbbell} category="attivita" footerLabel="Vedi allenamenti" onFooterClick={() => navigate('/allenamenti')}>
@@ -240,22 +255,6 @@ export function HomePage() {
               ✓
             </button>
           </div>
-        </Card>
-      )}
-
-      {data.shopping_preview.length > 0 && (
-        <Card label="Da comprare" icon={ShoppingBasket} category="spesa">
-          {data.shopping_preview.map((item) => (
-            <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '6px 0', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={item.checked}
-                onChange={() => toggleShoppingItem.mutate(item.id)}
-                style={{ width: 20, height: 20 }}
-              />
-              <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)' }}>{item.name}</span>
-            </label>
-          ))}
         </Card>
       )}
     </>

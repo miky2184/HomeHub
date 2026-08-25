@@ -34,6 +34,7 @@ def _to_out(db: Session) -> AppSettingsOut:
         weather_latitude=s.weather_latitude,
         weather_longitude=s.weather_longitude,
         background_theme=s.background_theme,
+        shopping_preview_limit=s.shopping_preview_limit,
         google_client_id=s.google_client_id,
         google_client_secret_set="google_client_secret" in overridden,
         google_refresh_token_set="google_refresh_token" in overridden,

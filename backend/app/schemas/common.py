@@ -279,6 +279,7 @@ class AppSettingsOut(BaseModel):
     weather_latitude: float | None = None
     weather_longitude: float | None = None
     background_theme: str = ""
+    shopping_preview_limit: int = 5
     google_client_id: str = ""
     google_client_secret_set: bool = False
     google_refresh_token_set: bool = False
@@ -303,6 +304,7 @@ class AppSettingsUpdate(BaseModel):
     weather_latitude: float | None = None
     weather_longitude: float | None = None
     background_theme: str | None = None
+    shopping_preview_limit: int | None = None
     google_client_id: str | None = None
     google_client_secret: str | None = None
     google_refresh_token: str | None = None

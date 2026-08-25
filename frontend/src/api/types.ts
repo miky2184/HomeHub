@@ -197,6 +197,7 @@ export interface AppSettings {
   weather_latitude: number | null
   weather_longitude: number | null
   background_theme: string
+  shopping_preview_limit: number
   google_client_id: string
   google_client_secret_set: boolean
   google_refresh_token_set: boolean
@@ -215,6 +216,7 @@ export interface AppSettingsUpdate {
   weather_latitude?: number | null
   weather_longitude?: number | null
   background_theme?: string
+  shopping_preview_limit?: number | null
   google_client_id?: string
   google_client_secret?: string
   google_refresh_token?: string

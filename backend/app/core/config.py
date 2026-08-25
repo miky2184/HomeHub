@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # mai stato salvato nulla da Impostazioni) ---
     family_name: str = ""
     background_theme: str = ""  # chiave della palette (vedi frontend/src/lib/palette.ts), "" = predefinito
+    shopping_preview_limit: int = 5  # quanti prodotti mostrare nell'anteprima della card "Lista della spesa" in Home
 
     # --- Postgres (istanza esistente, schema dedicato) ---
     database_url: str = "postgresql+psycopg://homehub:homehub@localhost:5432/homehub"

@@ -32,6 +32,7 @@ FIELD_TYPES: dict[str, type] = {
     "weather_latitude": float,
     "weather_longitude": float,
     "background_theme": str,
+    "shopping_preview_limit": int,
     "google_client_id": str,
     "google_client_secret": str,
     "google_refresh_token": str,
