@@ -3,6 +3,7 @@ import { api } from './client'
 import type {
   AppSettings,
   AppSettingsUpdate,
+  AuthStatus,
   CalendarEvent,
   CalendarInfo,
   Chore,
@@ -22,6 +23,40 @@ import type {
   TrainingActivityDetail,
   TrainingSession,
 } from './types'
+
+// --- Login (unico e condiviso, vedi backend/app/core/auth.py) ---
+
+export function useAuthStatus() {
+  return useQuery({
+    queryKey: ['auth-status'],
+    queryFn: () => api.get<AuthStatus>('/api/auth/status'),
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+}
+
+export function useLogin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (password: string) => api.post<{ ok: true }>('/api/auth/login', { password }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['auth-status'] }),
+  })
+}
+
+export function useLogout() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<{ ok: true }>('/api/auth/logout'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['auth-status'] }),
+  })
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (payload: { current_password: string; new_password: string }) =>
+      api.post<{ ok: true }>('/api/auth/change-password', payload),
+  })
+}
 
 // --- Home ---
 

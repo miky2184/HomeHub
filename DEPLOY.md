@@ -55,30 +55,22 @@ Questo crea lo schema `homehub` e le tabelle `training_plan` / `app_config` / `s
 
 > **Nota**: usa sempre `python -m alembic ...` e non `alembic ...` da solo. Su alcune distribuzioni (Debian/Ubuntu) esiste un pacchetto di sistema `python3-alembic` che finisce prima nel `PATH` anche a venv attivo — `alembic` da solo lo invocherebbe, fallendo con `ModuleNotFoundError: pydantic_settings` perché quell'alembic di sistema non vede i pacchetti del venv. `python -m alembic` usa sempre l'interprete del venv attivo e non ha questo problema.
 
-## 4. Generare le credenziali Basic Auth (`frontend/.htpasswd`)
+## 4. Impostare la password di login di HomeHub
 
-Il frontend fa anche da reverse proxy verso il backend (un solo entry point, porta **8444** — vedi sotto "Esposizione su internet"). Da dentro la LAN di casa non viene mai richiesta l'autenticazione; serve solo a chi arriva da fuori tramite il port forwarding.
+L'autenticazione non è più a livello nginx (niente più Basic Auth/`.htpasswd`): HomeHub ha una sua pagina di login, con una password unica condivisa da tutta la famiglia e una sessione che dura **30 giorni** (una volta fatto login su un browser/dispositivo, in pratica non lo richiede quasi più). Protegge sia l'accesso da fuori LAN sia da dentro casa — vedi ARCHITECTURE.md §8 per i motivi del cambio.
 
 ```bash
-cd frontend
-# richiede il pacchetto "apache2-utils" (Debian/Ubuntu) o "httpd-tools" (RHEL) per il comando htpasswd
-sudo apt install -y apache2-utils   # se non già presente
-htpasswd -c -s .htpasswd homehub
-# ti chiede la password interattivamente: scegline una robusta, non la condividere in chat/commit
+cd backend
+source .venv/bin/activate
+python scripts/generate_password_hash.py
+# chiede la password a video (non appare mentre la scrivi) e stampa
+# APP_PASSWORD_HASH=... e, se manca, SESSION_SECRET_KEY=...
 cd ..
 ```
 
-> **Importante**: usa sempre `-s` (hash SHA, formato `{SHA}...`). Il container frontend è basato su `nginx:alpine` (musl libc), che **non supporta l'hash `$apr1$`** generato di default da `htpasswd` — nginx non riuscirebbe mai a validare la password (401 anche con le credenziali giuste, senza nessun errore esplicito). `-s` fa usare a nginx la sua verifica SHA1 interna, che funziona su qualunque immagine.
+Copia le righe stampate in `backend/.env`. Senza `APP_PASSWORD_HASH` il login resta disattivato (tutte le richieste passano, comodo appena dopo aver aggiornato il deploy con questa versione) — compilalo prima di lasciare l'app raggiungibile stabilmente. `SESSION_SECRET_KEY` va messa una volta e non toccata più: cambiarla (o lasciarla vuota, nel qual caso ne viene generata una diversa ad ogni riavvio) disconnette tutti quelli che avevano già fatto login.
 
-`frontend/.htpasswd` è escluso da Git (vedi `frontend/.gitignore`): resta solo sul NUC.
-
-Se hai già creato il file con `htpasswd -c .htpasswd ...` (senza `-s`) e noti un 401 persistente anche con le credenziali corrette, rigeneralo con `-s` e fai `docker compose restart frontend`.
-
-Se la subnet della tua LAN non è `192.168.1.0/24`, apri [frontend/nginx.conf](frontend/nginx.conf) e correggi le righe `allow 192.168.1.0/24;` con quella corretta (es. `192.168.0.0/24`) — altrimenti i dispositivi di casa si troverebbero comunque a dover fare login.
-
-> **Nota**: `nginx.conf` viene copiato dentro l'immagine al build (`COPY nginx.conf ...` nel Dockerfile) — se lo modifichi devi rifare `docker compose up -d --build` (non basta un riavvio) perché la modifica abbia effetto.
-
-> **Perché `curl http://localhost:8444/...` sul NUC chiede la password anche se sei "in LAN"**: il traffico verso `localhost`, passando per il port mapping di Docker, arriva a nginx con un IP sorgente NAT-ato nel bridge Docker (non `127.0.0.1`) — per questo `nginx.conf` whitelista anche `172.16.0.0/12` (le subnet dei bridge Docker, un range privato quindi sicuro). Con quella regola sia `curl` sul NUC sia il kiosk stesso puntato su `localhost:8444` funzionano senza login.
+Una volta che l'app è raggiungibile, la password si può anche cambiare dalla UI (Impostazioni → Sicurezza, richiede quella attuale) senza dover più toccare `.env` o riavviare nulla — quel cambiamento disconnette anche automaticamente tutte le sessioni già aperte, non solo quella di chi la cambia.
 
 ## 5. Build e avvio con Docker Compose
 
@@ -101,15 +93,14 @@ Poi apri `http://localhost:8444` (o `http://IP_NUC:8444`) nel browser: dovresti 
 
 ## Esposizione su internet (port forwarding)
 
-> ⚠️ **Stato attuale: Basic Auth disattivata temporaneamente** (commentata in `frontend/nginx.conf`), su richiesta esplicita per poter lavorare da remoto senza il blocco del popup su Chrome/Edge. In questo momento la porta **8444** è raggiungibile da chiunque su internet **senza alcuna autenticazione**, in lettura e scrittura (calendario, spesa, inventory, ecc.). Da ripristinare prima di lasciare l'accesso esterno attivo stabilmente — o, più semplice, rimuovere la regola di port forward sul router quando l'accesso da fuori casa non serve più (vedi nota in cima a `frontend/nginx.conf` per come riattivarla).
+> ⚠️ **Se stai aggiornando un deploy precedente**: prima di questa versione la Basic Auth di nginx era disattivata (per il problema del popup bloccato da Chrome/Edge, vedi sotto) e la porta **8444** era raggiungibile da chiunque su internet **senza alcuna autenticazione**, in lettura e scrittura. Fai il passo 4 (impostare `APP_PASSWORD_HASH`) **prima** di lasciare l'accesso esterno attivo dopo l'aggiornamento — altrimenti l'app resta comunque aperta a tutti come prima, solo senza più nemmeno il tentativo di Basic Auth.
 
-Hai scelto di rendere HomeHub raggiungibile anche da fuori casa via port forwarding sul router, sulla porta **8444** (esterna e interna). Con la configurazione (Basic Auth attiva):
+Hai scelto di rendere HomeHub raggiungibile anche da fuori casa via port forwarding sul router, sulla porta **8444** (esterna e interna).
 
 - **Sul router**: una sola regola, esterna `8444` → interna `8444` verso l'IP del NUC. **Non forwardare mai la 8000**: il backend non è più raggiungibile dall'host, quindi non c'è nulla da aprire per lui.
-- Da dentro casa (subnet configurata in `frontend/nginx.conf`) l'app resta senza login, come da progetto originale.
-- Da fuori casa, il browser chiederà la Basic Auth (utente/password creati al passo 4).
-- **Limite di questa configurazione**: il traffico verso la porta esposta viaggia in HTTP semplice, non cifrato — su internet, in teoria intercettabile lungo il percorso (molto meno probabile del semplice bersagliamento automatico della porta, ma non escluso). Se vuoi eliminare anche questo rischio in un secondo momento, le opzioni più semplici sono: (a) un dominio + certificato Let's Encrypt davanti a nginx, oppure (b) sostituire il port forwarding con una VPN verso casa (es. Tailscale), che cifra tutto e non richiede porte aperte. Per ora procediamo così, come richiesto.
-- **Browser aziendali/gestiti (es. Edge con policy IT) possono bloccare in silenzio il popup di Basic Auth su siti HTTP semplice** (non HTTPS), per policy di sicurezza dell'organizzazione — nessun errore esplicito, il popup semplicemente non appare mai, anche con server e credenziali corretti (verificato: da Safari/browser personale funziona regolarmente). Non è un problema di HomeHub e non è risolvibile lato server; le opzioni sono usare un browser/dispositivo personale, oppure passare a HTTPS (vedi punto sopra) che in genere non è soggetto alle stesse restrizioni.
+- Sia da dentro casa sia da fuori, la password di login (passo 4) è la stessa e protegge allo stesso modo: non c'è più una whitelist di IP di LAN che bypassa il login come con la vecchia Basic Auth — una volta fatto login su un dispositivo, la sessione dura 30 giorni, quindi in pratica non lo richiede quasi più.
+- **Limite di questa configurazione**: il traffico verso la porta esposta viaggia in HTTP semplice, non cifrato — su internet, in teoria intercettabile lungo il percorso (molto meno probabile del semplice bersagliamento automatico della porta, ma non escluso; anche il cookie di sessione viaggerebbe in chiaro). Se vuoi eliminare anche questo rischio, le opzioni più semplici sono: (a) un dominio + certificato Let's Encrypt davanti a nginx (**ricordati anche di mettere `SESSION_COOKIE_SECURE=true` in `.env`** a quel punto, altrimenti il cookie non verrebbe più inviato affatto), oppure (b) sostituire il port forwarding con una VPN verso casa (es. Tailscale), che cifra tutto e non richiede porte aperte. Per ora procediamo così, come richiesto.
+- Il vecchio problema della Basic Auth (**browser aziendali/gestiti, es. Edge con policy IT, bloccavano in silenzio il popup nativo** su siti HTTP semplice — nessun errore, il popup semplicemente non appariva mai) non si applica più: il login di HomeHub è un form HTML normale, non un popup del browser.
 
 ## 5. Iterare pagina per pagina
 

@@ -6,8 +6,20 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json' },
+    // Il cookie di sessione (vedi backend/app/core/auth.py) va sempre
+    // inviato — 'include' invece del default 'same-origin' perché in dev
+    // locale VITE_API_BASE_URL può puntare a un'origine diversa (uvicorn
+    // su :8000 invece del proxy di vite), dove 'same-origin' non lo
+    // manderebbe affatto.
+    credentials: 'include',
     ...init,
   })
+  if (response.status === 401 && path !== '/api/auth/login') {
+    // Sessione scaduta o mai fatta: AuthGate (vedi App.tsx) intercetta
+    // questo evento e mostra subito la pagina di login, senza dover
+    // ricaricare tutta la pagina per scoprirlo.
+    window.dispatchEvent(new Event('homehub:unauthorized'))
+  }
   if (!response.ok) {
     throw new Error(`Richiesta fallita (${response.status}): ${path}`)
   }

@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 
 # Campo app_config -> tipo per il parsing di value (sempre testo su riga).
 FIELD_TYPES: dict[str, type] = {
+    # Scritto solo da api/routes/auth.py:change_password (non dalla PUT
+    # generica di Impostazioni, che richiede invece la verifica esplicita
+    # della password attuale) — letto qui insieme a tutto il resto perché
+    # il middleware di autenticazione legge comunque da effective_settings().
+    "app_password_hash": str,
     "family_name": str,
     "weather_city": str,
     "weather_latitude": float,

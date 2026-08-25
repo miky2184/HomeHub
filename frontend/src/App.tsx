@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { AuthGate } from './components/AuthGate'
 import { AppLayout } from './layout/AppLayout'
 import { CalendarPage } from './pages/CalendarPage'
 import { ChoresPage } from './pages/ChoresPage'
@@ -19,19 +20,21 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<HomePage />} />
-            <Route path="calendario" element={<CalendarPage />} />
-            <Route path="todo" element={<TodoPage />} />
-            <Route path="manutenzione" element={<ChoresPage />} />
-            <Route path="menu" element={<MenuPage />} />
-            <Route path="allenamenti" element={<TrainingPage />} />
-            <Route path="spesa" element={<ShoppingPage />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="impostazioni" element={<SettingsPage />} />
-          </Route>
-        </Routes>
+        <AuthGate>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route index element={<HomePage />} />
+              <Route path="calendario" element={<CalendarPage />} />
+              <Route path="todo" element={<TodoPage />} />
+              <Route path="manutenzione" element={<ChoresPage />} />
+              <Route path="menu" element={<MenuPage />} />
+              <Route path="allenamenti" element={<TrainingPage />} />
+              <Route path="spesa" element={<ShoppingPage />} />
+              <Route path="inventory" element={<InventoryPage />} />
+              <Route path="impostazioni" element={<SettingsPage />} />
+            </Route>
+          </Routes>
+        </AuthGate>
       </BrowserRouter>
     </QueryClientProvider>
   )

@@ -1,8 +1,12 @@
 """Configurazione centralizzata dell'app, letta da variabili d'ambiente (.env)."""
 
+import logging
+import secrets
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -12,6 +16,25 @@ class Settings(BaseSettings):
     app_name: str = "HomeHub backend"
     environment: str = "development"
     cors_origins: list[str] = ["http://localhost:5173"]
+
+    # --- Login (unico, condiviso da tutta la famiglia — niente account per
+    # persona, coerente con la scelta "no multi-utente" di HomeHub). Vuoto =
+    # login disattivato (nessuna password ancora configurata): tutte le
+    # richieste passano, comodo per non restare bloccati fuori subito dopo
+    # il primo deploy di questa feature. app_password_hash è sovrascrivibile
+    # da app_config (vedi runtime_settings.py): la "Cambia password" in
+    # Impostazioni scrive lì, .env resta solo il valore iniziale. Genera
+    # l'hash con backend/scripts/generate_password_hash.py — vedi DEPLOY.md.
+    app_password_hash: str = ""
+    # Chiave per firmare il cookie di sessione (30 giorni, vedi core/auth.py)
+    # — deve restare la stessa tra un riavvio e l'altro, altrimenti ogni
+    # riavvio del backend disconnette tutti. Se lasciata vuota ne genero una
+    # casuale all'avvio (solo per non bloccare lo sviluppo locale): in
+    # produzione va messa in .env, altrimenti ogni deploy fa relogin a tutti.
+    session_secret_key: str = ""
+    # true solo se HomeHub è servito in HTTPS: un cookie "Secure" su HTTP
+    # semplice non verrebbe mai inviato dal browser, disconnettendo tutti.
+    session_cookie_secure: bool = False
 
     # --- Personalizzazione da Impostazioni (nessun equivalente "di sistema":
     # esistono solo per essere sovrascritti da app_config, vedi
@@ -69,4 +92,12 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    if not settings.session_secret_key:
+        logger.warning(
+            "SESSION_SECRET_KEY non impostata in .env: ne uso una generata al volo, "
+            "che cambierà (disconnettendo tutti) ad ogni riavvio del backend. "
+            "Impostala in .env per una sessione stabile tra i riavvii."
+        )
+        settings.session_secret_key = secrets.token_hex(32)
+    return settings

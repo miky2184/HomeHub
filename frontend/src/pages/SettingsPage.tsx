@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Calendar, CalendarClock, ChefHat, CloudSun, Cookie, Home, Palette, Plug, ShoppingBasket, ShoppingCart, Users, Watch } from 'lucide-react'
+import { Calendar, CalendarClock, ChefHat, CloudSun, Cookie, Home, LogOut, Palette, Plug, ShieldCheck, ShoppingBasket, ShoppingCart, Users, Watch } from 'lucide-react'
 import type { SchoolMenuTemplateEntry, SnackTemplateEntry } from '../api/types'
 import {
   useAppSettings,
+  useChangePassword,
+  useLogout,
   useMenuSettings,
   useUpdateAppSettings,
   useUpsertSchoolAnchor,
@@ -28,6 +30,7 @@ const TABS: Array<{ key: string; label: string; icon: typeof Home; category: Cat
   { key: 'meteo', label: 'Meteo', icon: CloudSun, category: 'agenda' },
   { key: 'menu', label: 'Menu scuola', icon: ChefHat, category: 'cucina' },
   { key: 'integrazioni', label: 'Integrazioni', icon: Plug, category: 'evidenza' },
+  { key: 'sicurezza', label: 'Sicurezza', icon: ShieldCheck, category: 'casa' },
 ]
 
 // Stato di un campo segreto (password/token): mai pre-compilato col valore
@@ -150,6 +153,7 @@ export function SettingsPage() {
       {activeTab === 'meteo' && <MeteoSection />}
       {activeTab === 'menu' && <MenuScuolaSection />}
       {activeTab === 'integrazioni' && <IntegrazioniSection />}
+      {activeTab === 'sicurezza' && <SicurezzaSection />}
     </>
   )
 }
@@ -506,6 +510,98 @@ function IntegrazioniSection() {
             Salva Garmin Connect
           </button>
         </div>
+      </Card>
+    </>
+  )
+}
+
+function SicurezzaSection() {
+  const changePassword = useChangePassword()
+  const logout = useLogout()
+
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
+
+  // Un cambio password a metà non deve andare perso per l'idle redirect.
+  useUnsavedChanges(currentPassword !== '' || newPassword !== '' || confirmPassword !== '')
+
+  function handleChangePassword() {
+    setMessage(null)
+    if (newPassword !== confirmPassword) {
+      setMessage({ text: 'Le due password non coincidono.', error: true })
+      return
+    }
+    if (newPassword.length < 8) {
+      setMessage({ text: 'La nuova password deve avere almeno 8 caratteri.', error: true })
+      return
+    }
+    changePassword.mutate(
+      { current_password: currentPassword, new_password: newPassword },
+      {
+        onSuccess: () => {
+          setMessage({ text: 'Password cambiata.', error: false })
+          setCurrentPassword('')
+          setNewPassword('')
+          setConfirmPassword('')
+        },
+        onError: () => setMessage({ text: 'Password attuale errata.', error: true }),
+      }
+    )
+  }
+
+  return (
+    <>
+      <Card label="Cambia password" icon={ShieldCheck} category="casa">
+        <p style={{ margin: '0 0 12px', fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
+          Password unica e condivisa per tutta la famiglia — chi ha accesso in questo momento resta connesso
+          (il login dura 30 giorni), solo i nuovi accessi dovranno usare quella nuova.
+        </p>
+        <div style={{ display: 'grid', gap: 12, maxWidth: 320 }}>
+          <input
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Password attuale"
+            style={inputStyle}
+          />
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Nuova password (min. 8 caratteri)"
+            style={inputStyle}
+          />
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Ripeti nuova password"
+            style={inputStyle}
+          />
+          {message && (
+            <p style={{ margin: 0, fontSize: 'var(--fs-label)', color: message.error ? 'var(--danger)' : 'var(--accent)' }}>
+              {message.text}
+            </p>
+          )}
+          <button
+            style={{ ...buttonStyle, justifySelf: 'start' }}
+            disabled={!currentPassword || !newPassword || changePassword.isPending}
+            onClick={handleChangePassword}
+          >
+            Salva nuova password
+          </button>
+        </div>
+      </Card>
+
+      <Card label="Sessione" icon={LogOut} category="casa">
+        <p style={{ margin: '0 0 12px', fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
+          Esce da questo browser: la prossima volta servirà di nuovo la password.
+        </p>
+        <button style={ghostButtonStyle} onClick={() => logout.mutate()}>
+          Esci
+        </button>
       </Card>
     </>
   )

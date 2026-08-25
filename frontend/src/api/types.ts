@@ -254,3 +254,11 @@ export interface AppSettingsUpdate {
   garmin_email?: string
   garmin_password?: string
 }
+
+// Login unico e condiviso (vedi backend/app/core/auth.py). auth_required
+// false = password non ancora configurata in backend/.env: l'app funziona
+// senza mai chiedere login (vedi anche useAuthStatus in hooks.ts).
+export interface AuthStatus {
+  auth_required: boolean
+  authenticated: boolean
+}
