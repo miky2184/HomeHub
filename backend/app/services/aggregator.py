@@ -24,6 +24,7 @@ from app.core.runtime_settings import effective_settings
 from app.db.dieta_models import GIORNI_SETTIMANA_IT, allenamento_table, menu_settimanale_table
 from app.db.home_inventory_models import categories_table, containers_table, items_table
 from app.db.models import (
+    Chore,
     SchoolMenuCycleAnchor,
     SchoolMenuTemplateEntry,
     SnackTemplateEntry,
@@ -31,6 +32,8 @@ from app.db.models import (
     TrainingSession as TrainingSessionModel,
 )
 from app.schemas.common import (
+    ChoreOut,
+    ChoreSummary,
     DailyForecast,
     HomeMeals,
     HomeSummary,
@@ -231,6 +234,40 @@ def get_todo_summary(db: Session) -> TodoSummary:
     pending = [i for i in db.scalars(select(TodoItem)).all() if not i.done]
     top = sort_todos(pending)[:3]
     return TodoSummary(pending_count=len(pending), top=[todo_item_out(i) for i in top])
+
+
+def chore_item_out(chore: Chore, today: date) -> ChoreOut:
+    """next_due_date = last_done_date + interval_days; mai fatta (None) è
+    trattata come "scaduta da oggi" (next_due_date = today) invece di un
+    None che il chiamante dovrebbe gestire a parte — è comunque un'attività
+    da fare, va semplicemente in cima come le altre più in ritardo."""
+    next_due = chore.last_done_date + timedelta(days=chore.interval_days) if chore.last_done_date else today
+    return ChoreOut(
+        id=chore.id,
+        title=chore.title,
+        interval_days=chore.interval_days,
+        last_done_date=chore.last_done_date,
+        next_due_date=next_due,
+        assignee=chore.assignee,
+        notes=chore.notes,
+        created_at=chore.created_at,
+    )
+
+
+def sort_chores(items: list[ChoreOut]) -> list[ChoreOut]:
+    """Più urgenti prima: scadenza più vicina (quindi più in ritardo se nel
+    passato), poi titolo per un ordine stabile a parità di data — stesso
+    ordine ovunque (tab Manutenzione e top 3 in Home)."""
+    return sorted(items, key=lambda c: (c.next_due_date, c.title))
+
+
+def get_chore_summary(db: Session, today: date) -> ChoreSummary:
+    """Conteggio delle attività scadute/da fare oggi (mai fatte incluse) + le
+    prime 3 per urgenza, per la card 'Manutenzione' in Home."""
+    items = [chore_item_out(c, today) for c in db.scalars(select(Chore)).all()]
+    due = [c for c in items if c.next_due_date <= today]
+    top = sort_chores(items)[:3]
+    return ChoreSummary(due_count=len(due), top=top)
 
 
 # Chiavi pasto nel jsonb di dieta.menu_settimanale → campo HomeMeals
@@ -502,6 +539,7 @@ async def build_home_summary(db: Session) -> HomeSummary:
 
     inventory_alerts = get_inventory_alerts(db, today)
     todos = get_todo_summary(db)
+    chores = get_chore_summary(db, today)
 
     menu_day = await build_menu_day(db, effective_menu_date(now))
     today_menu = (
@@ -533,5 +571,6 @@ async def build_home_summary(db: Session) -> HomeSummary:
         shopping_preview=unchecked[: effective_settings().shopping_preview_limit],
         shopping_total_count=len(shopping_items),
         inventory_alerts=inventory_alerts,
+        chores=chores,
         todos=todos,
     )

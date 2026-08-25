@@ -253,6 +253,46 @@ class TodoSummary(BaseModel):
     top: list[TodoItemOut]  # prime 3 per priorità/scadenza, solo non fatti
 
 
+class ChoreOut(BaseModel):
+    """Attività di casa ricorrente per intervallo (Manutenzione, non Todo:
+    vedi db/models.py:Chore). next_due_date è calcolato, non salvato — mai
+    fatta (last_done_date None) equivale a "scaduta da oggi", per farla
+    comparire subito come da fare invece di sparire dietro un None."""
+
+    id: int
+    title: str
+    interval_days: int
+    last_done_date: date | None = None
+    next_due_date: date
+    assignee: str | None = None
+    notes: str | None = None
+    created_at: datetime
+
+
+class ChoreCreate(BaseModel):
+    title: str
+    interval_days: int
+    last_done_date: date | None = None  # compilabile se la si è già fatta di recente, altrimenti "da fare subito"
+    assignee: str | None = None
+    notes: str | None = None
+
+
+class ChoreUpdate(BaseModel):
+    """PATCH parziale: usato sia dal form di modifica sia dal pulsante
+    "Fatto oggi" ({"last_done_date": <oggi>})."""
+
+    title: str | None = None
+    interval_days: int | None = None
+    last_done_date: date | None = None
+    assignee: str | None = None
+    notes: str | None = None
+
+
+class ChoreSummary(BaseModel):
+    due_count: int  # scadute o da fare oggi (mai fatte incluse)
+    top: list[ChoreOut]  # prime 3 per urgenza (vedi sort_chores)
+
+
 class HomeSummary(BaseModel):
     now: datetime
     family_name: str = ""  # da Impostazioni, mostrato nel saluto in Home
@@ -265,6 +305,7 @@ class HomeSummary(BaseModel):
     shopping_preview: list[ShoppingItem]
     shopping_total_count: int
     inventory_alerts: list[InventoryAlert]
+    chores: ChoreSummary
     todos: TodoSummary
 
 

@@ -1,12 +1,13 @@
-import { CalendarDays, CheckSquare, ChefHat, Dumbbell, House, ShoppingBasket } from 'lucide-react'
+import { CalendarDays, CheckSquare, ChefHat, Check, Dumbbell, House, ShoppingBasket, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { HomeMeals } from '../api/types'
-import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem } from '../api/hooks'
+import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem, useUpdateChore } from '../api/hooks'
 import { Card } from '../components/Card'
 import { MealList } from '../components/MealList'
 import { WeatherCard } from '../components/WeatherCard'
 import { getGreeting } from '../config'
 import { useClock } from '../hooks/useClock'
+import { choreDueInfo } from '../lib/chores'
 import { inferEventIcon } from '../lib/eventIcon'
 import { currentWeekStart, dateFromWeek, relativeDayLabel, toDateKey } from '../lib/date'
 import { dueDateInfo, PRIORITY_META } from '../lib/todo'
@@ -47,6 +48,7 @@ export function HomePage() {
   const { data, isLoading, isError } = useHomeSummary()
   const toggleShoppingItem = useToggleShoppingItem()
   const markTrainingDone = useMarkTrainingDone(currentWeekStart())
+  const updateChore = useUpdateChore()
   const { now, time, date } = useClock()
 
   if (isLoading) return <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>
@@ -204,6 +206,52 @@ export function HomePage() {
           )}
         </Card>
       </div>
+
+      {data.chores.due_count > 0 && (
+        <Card
+          label={`Manutenzione · ${data.chores.due_count}`}
+          icon={Wrench}
+          category="manutenzione"
+          footerLabel="Vedi tutte"
+          onFooterClick={() => navigate('/manutenzione')}
+        >
+          {data.chores.top.map((chore) => {
+            const due = choreDueInfo(chore)
+            return (
+              <div key={chore.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    {chore.title}
+                  </span>
+                  <p style={{ margin: 0, fontSize: 'var(--fs-label)', fontWeight: due.overdue ? 700 : 400, color: due.overdue ? 'var(--danger)' : 'var(--text-secondary)' }}>
+                    {due.label}
+                  </p>
+                </div>
+                <button
+                  onClick={() => updateChore.mutate({ id: chore.id, last_done_date: toDateKey(new Date()) })}
+                  aria-label={`Segna "${chore.title}" come fatta oggi`}
+                  title="Fatto oggi"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    border: 'none',
+                    background: 'var(--cat-manutenzione-bg)',
+                    color: 'var(--cat-manutenzione-fg)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Check size={16} />
+                </button>
+              </div>
+            )
+          })}
+        </Card>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--gap-md)' }}>
         <Card

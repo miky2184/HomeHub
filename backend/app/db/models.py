@@ -99,6 +99,28 @@ class TodoItem(Base):
     )
 
 
+class Chore(Base):
+    """Attività di casa ricorrenti per intervallo (non a data fissa come gli
+    eventi di calendario): "pulire il filtro della lavastoviglie ogni 90
+    giorni", non "compra il latte" (quello è un Todo, una tantum). La
+    prossima scadenza si calcola da last_done_date + interval_days (mai
+    fatta → considerata scaduta da subito, vedi
+    services/aggregator.chore_item_out). "per chi" libero come in Todo."""
+
+    __tablename__ = "chore"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    interval_days: Mapped[int] = mapped_column(Integer)
+    last_done_date: Mapped[date | None] = mapped_column(Date, default=None)
+    assignee: Mapped[str | None] = mapped_column(String(100), default=None)
+    notes: Mapped[str | None] = mapped_column(Text, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class AppConfig(Base):
     """Config runtime key/value, sovrascrivibile dalla pagina Impostazioni:
     se una chiave è presente qui (e non vuota) vince sul corrispondente

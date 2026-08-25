@@ -5,6 +5,8 @@ import type {
   AppSettingsUpdate,
   CalendarEvent,
   CalendarInfo,
+  Chore,
+  ChoreInput,
   HomeSummary,
   InventoryAlert,
   InventoryContainer,
@@ -294,6 +296,49 @@ export function useDeleteTodo() {
   const invalidate = useInvalidateTodos()
   return useMutation({
     mutationFn: (id: number) => api.delete<void>(`/api/todos/${id}`),
+    onSuccess: invalidate,
+  })
+}
+
+// --- Manutenzione (attività di casa ricorrenti per intervallo, non
+// una-tantum come i Todo) ---
+
+export function useChores() {
+  return useQuery({
+    queryKey: ['chores'],
+    queryFn: () => api.get<Chore[]>('/api/chores'),
+  })
+}
+
+function useInvalidateChores() {
+  const queryClient = useQueryClient()
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ['chores'] })
+    queryClient.invalidateQueries({ queryKey: ['home-summary'] })
+  }
+}
+
+export function useCreateChore() {
+  const invalidate = useInvalidateChores()
+  return useMutation({
+    mutationFn: (payload: ChoreInput) => api.post<Chore>('/api/chores', payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateChore() {
+  const invalidate = useInvalidateChores()
+  return useMutation({
+    mutationFn: ({ id, ...payload }: { id: number } & Partial<ChoreInput>) =>
+      api.patch<Chore>(`/api/chores/${id}`, payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteChore() {
+  const invalidate = useInvalidateChores()
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/api/chores/${id}`),
     onSuccess: invalidate,
   })
 }

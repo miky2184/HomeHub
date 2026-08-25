@@ -173,6 +173,33 @@ export interface TodoSummary {
   top: TodoItem[]
 }
 
+// Manutenzione: attività di casa ricorrenti per intervallo, non una-tantum
+// come i Todo (vedi backend/app/db/models.py:Chore). next_due_date è
+// calcolato dal backend, non un campo salvato.
+export interface Chore {
+  id: number
+  title: string
+  interval_days: number
+  last_done_date: string | null
+  next_due_date: string
+  assignee: string | null
+  notes: string | null
+  created_at: string
+}
+
+export interface ChoreInput {
+  title: string
+  interval_days: number
+  last_done_date: string | null
+  assignee: string | null
+  notes: string | null
+}
+
+export interface ChoreSummary {
+  due_count: number
+  top: Chore[]
+}
+
 export interface HomeSummary {
   now: string
   family_name: string
@@ -185,6 +212,7 @@ export interface HomeSummary {
   shopping_preview: ShoppingItem[]
   shopping_total_count: number
   inventory_alerts: InventoryAlert[]
+  chores: ChoreSummary
   todos: TodoSummary
 }
 

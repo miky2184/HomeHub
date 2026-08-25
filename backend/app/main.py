@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError as GoogleHttpError
 
-from app.api.routes import calendar, home, inventory, menu, settings as settings_routes, shopping, todo, training
+from app.api.routes import calendar, chores, home, inventory, menu, settings as settings_routes, shopping, todo, training
 from app.core.config import get_settings
 from app.core.runtime_settings import refresh_overrides
 from app.db.base import SessionLocal
@@ -85,6 +85,7 @@ app.include_router(training.router)
 app.include_router(shopping.router)
 app.include_router(inventory.router)
 app.include_router(todo.router)
+app.include_router(chores.router)
 app.include_router(settings_routes.router)
 
 
