@@ -38,11 +38,6 @@ export function Rail() {
         overflowY: 'auto',
       }}
     >
-      <img
-        src="/logo-mark.png"
-        alt="HomeHub"
-        style={{ width: 48, height: 48, borderRadius: 16, margin: '0 auto 10px' }}
-      />
       {TABS.map(({ to, label, Icon, category }) => {
         const colors = CATEGORY_COLORS[category]
         return (
