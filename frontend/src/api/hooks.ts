@@ -5,6 +5,7 @@ import type {
   CalendarInfo,
   HomeSummary,
   InventoryAlert,
+  InventoryContainer,
   MenuSettings,
   MenuWeek,
   SchoolMenuCycleAnchor,
@@ -223,6 +224,14 @@ export function useInventoryAlerts() {
   return useQuery({
     queryKey: ['inventory-alerts'],
     queryFn: () => api.get<InventoryAlert[]>('/api/inventory/alerts'),
+    refetchInterval: 15 * 60_000,
+  })
+}
+
+export function useInventoryContainers() {
+  return useQuery({
+    queryKey: ['inventory-containers'],
+    queryFn: () => api.get<InventoryContainer[]>('/api/inventory/containers'),
     refetchInterval: 15 * 60_000,
   })
 }

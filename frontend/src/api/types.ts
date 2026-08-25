@@ -107,6 +107,24 @@ export interface InventoryAlert {
   reason: 'expired' | 'critical' | 'warning'
 }
 
+// "Sfoglia per contenitore": tutto il contenuto di home_inventory, non solo
+// ciò che scade a breve (vedi InventoryAlert sopra) — sostituisce il foglio
+// di carta sul frigo per sapere cosa c'è in un cassetto del freezer.
+export interface InventoryItem {
+  id: number
+  name: string
+  quantity: number | null
+  unit: string | null
+  expiry_date: string | null
+  category: string | null
+}
+
+export interface InventoryContainer {
+  id: number
+  name: string
+  items: InventoryItem[]
+}
+
 export interface HourlyForecast {
   time: string
   temperature_c: number | null

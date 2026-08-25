@@ -167,6 +167,26 @@ class InventoryAlert(BaseModel):
     reason: str = "warning"
 
 
+class InventoryItem(BaseModel):
+    """Una riga in un contenitore, per "Sfoglia per contenitore" in Casa —
+    a differenza di InventoryAlert non è legata a una scadenza imminente:
+    è la lista completa di cosa c'è in quel cassetto/ripiano, per sostituire
+    il foglio di carta sul frigo."""
+
+    id: int
+    name: str
+    quantity: float | None = None
+    unit: str | None = None
+    expiry_date: date | None = None
+    category: str | None = None
+
+
+class InventoryContainer(BaseModel):
+    id: int
+    name: str
+    items: list[InventoryItem]
+
+
 class HourlyForecast(BaseModel):
     time: datetime
     temperature_c: float | None = None

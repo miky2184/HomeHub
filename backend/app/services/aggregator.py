@@ -21,7 +21,7 @@ from app.adapters.weather import (
 )
 from app.core.config import get_settings
 from app.db.dieta_models import GIORNI_SETTIMANA_IT, allenamento_table, menu_settimanale_table
-from app.db.home_inventory_models import containers_table, items_table
+from app.db.home_inventory_models import categories_table, containers_table, items_table
 from app.db.models import (
     SchoolMenuCycleAnchor,
     SchoolMenuTemplateEntry,
@@ -35,6 +35,8 @@ from app.schemas.common import (
     HomeSummary,
     HourlyForecast,
     InventoryAlert,
+    InventoryContainer,
+    InventoryItem,
     MenuDay,
     TodoItemOut,
     TodoSummary,
@@ -112,6 +114,50 @@ def get_inventory_alerts(db: Session, today: date) -> list[InventoryAlert]:
             )
         )
     return alerts
+
+
+def get_inventory_by_container(db: Session) -> list[InventoryContainer]:
+    """Tutti i contenitori di home_inventory con il loro contenuto
+    completo (non solo ciò che scade a breve) — "Sfoglia per contenitore"
+    in Casa, per sostituire il foglio di carta sul frigo (cassetti del
+    freezer, freezer del terrazzo, ecc.). Include anche i contenitori
+    senza articoli (utile sapere che un cassetto è vuoto) e gli articoli
+    senza contenitore assegnato, in un gruppo "Senza contenitore"."""
+    containers = db.execute(select(containers_table.c.id, containers_table.c.name).order_by(containers_table.c.name)).all()
+    items = db.execute(
+        select(
+            items_table.c.id,
+            items_table.c.name,
+            items_table.c.container_id,
+            items_table.c.quantity,
+            items_table.c.unit_measure,
+            items_table.c.expiry_date,
+            categories_table.c.name.label("category_name"),
+        )
+        .select_from(items_table.outerjoin(categories_table, items_table.c.category_id == categories_table.c.id))
+        .order_by(items_table.c.name)
+    ).all()
+
+    items_by_container: dict[int | None, list[InventoryItem]] = {}
+    for row in items:
+        items_by_container.setdefault(row.container_id, []).append(
+            InventoryItem(
+                id=row.id,
+                name=row.name,
+                quantity=row.quantity,
+                unit=row.unit_measure,
+                expiry_date=row.expiry_date,
+                category=row.category_name,
+            )
+        )
+
+    result = [
+        InventoryContainer(id=c.id, name=c.name, items=items_by_container.get(c.id, [])) for c in containers
+    ]
+    if None in items_by_container:
+        # id fittizio negativo: i container reali sono SERIAL, partono da 1
+        result.append(InventoryContainer(id=-1, name="Senza contenitore", items=items_by_container[None]))
+    return result
 
 
 TODO_PRIORITY_ORDER = {"alta": 0, "media": 1, "bassa": 2}

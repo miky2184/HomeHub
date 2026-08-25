@@ -30,7 +30,7 @@ Apri `backend/.env` e compila **almeno**:
 - Home inventory non ha variabili da compilare (legge sempre direttamente lo schema `home_inventory` sullo stesso Postgres). L'unico requisito è che l'utente Postgres di `DATABASE_URL` (es. `homehub`) abbia **SELECT** su `home_inventory.items` e `home_inventory.containers` — se non l'ha già (es. perché è un ruolo diverso da quello usato da `home_inventory_web`), concedilo con:
   ```sql
   GRANT USAGE ON SCHEMA home_inventory TO homehub;
-  GRANT SELECT ON home_inventory.items, home_inventory.containers TO homehub;
+  GRANT SELECT ON home_inventory.items, home_inventory.containers, home_inventory.categories TO homehub;
   ```
 - Stesso discorso per `dieta.menu_settimanale` (cena di casa) — se non è già coperta dal grant fatto per `dieta.allenamento`:
   ```sql

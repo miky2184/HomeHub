@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { Check, House, ShoppingCart } from 'lucide-react'
-import { useAddShoppingItem, useInventoryAlerts } from '../api/hooks'
+import { useEffect, useState } from 'react'
+import { Boxes, Check, House, ShoppingCart } from 'lucide-react'
+import { useAddShoppingItem, useInventoryAlerts, useInventoryContainers } from '../api/hooks'
 import { Card } from '../components/Card'
 import type { InventoryAlert } from '../api/types'
-import { ghostButtonStyle } from '../styles/controls'
+import { ghostButtonStyle, inputStyle } from '../styles/controls'
 
 const REASON_LABEL: Record<InventoryAlert['reason'], string> = {
   expired: 'Scaduto',
@@ -19,12 +19,20 @@ const REASON_COLOR: Record<InventoryAlert['reason'], string> = {
 
 export function InventoryPage() {
   const { data: alerts, isLoading } = useInventoryAlerts()
+  const { data: containers, isLoading: isLoadingContainers } = useInventoryContainers()
   const addShoppingItem = useAddShoppingItem()
   // Solo un feedback visivo locale ("Aggiunto ✓"): non c'è un modo per
   // sapere se un nome è già sulla lista Bring! senza interrogarla, e non
   // è comunque un problema — aggiungere due volte lo stesso nome aggiorna
   // la voce invece di duplicarla (vedi adapters/bring.py:save_item).
   const [added, setAdded] = useState<Set<number>>(new Set())
+  const [selectedContainerId, setSelectedContainerId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (selectedContainerId === null && containers && containers.length > 0) {
+      setSelectedContainerId(containers[0].id)
+    }
+  }, [containers, selectedContainerId])
 
   function handleAddToBring(alert: InventoryAlert) {
     const specification =
@@ -34,6 +42,8 @@ export function InventoryPage() {
       { onSuccess: () => setAdded((prev) => new Set(prev).add(alert.id)) }
     )
   }
+
+  const selectedContainer = containers?.find((c) => c.id === selectedContainerId)
 
   return (
     <>
@@ -92,6 +102,73 @@ export function InventoryPage() {
           </div>
         </Card>
       ))}
+
+      <Card label="Sfoglia per contenitore" icon={Boxes} category="casa">
+        {isLoadingContainers && <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>}
+
+        {!isLoadingContainers && (containers ?? []).length === 0 && (
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 'var(--fs-body)' }}>
+            Nessun contenitore trovato in Home Inventory.
+          </p>
+        )}
+
+        {containers && containers.length > 0 && (
+          <>
+            <select
+              value={selectedContainerId ?? ''}
+              onChange={(e) => setSelectedContainerId(Number(e.target.value))}
+              style={{ ...inputStyle, width: '100%', marginBottom: 12 }}
+            >
+              {containers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.items.length})
+                </option>
+              ))}
+            </select>
+
+            {selectedContainer && selectedContainer.items.length === 0 && (
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-body)' }}>Vuoto</p>
+            )}
+
+            {selectedContainer?.items.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '6px 0',
+                  borderBottom: '1px solid var(--border)',
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    {item.name}
+                  </span>
+                  {item.category && (
+                    <span style={{ marginLeft: 8, fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
+                      {item.category}
+                    </span>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  {item.quantity != null && (
+                    <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-secondary)' }}>
+                      {item.quantity} {item.unit ?? ''}
+                    </span>
+                  )}
+                  {item.expiry_date && (
+                    <p style={{ margin: 0, fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
+                      Scad. {formatShortDate(item.expiry_date)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </Card>
     </>
   )
 }
@@ -101,4 +178,9 @@ function expiryLabel(days: number | null): string {
   if (days < 0) return `Scaduto da ${Math.abs(days)} gg`
   if (days === 0) return 'Scade oggi'
   return `Tra ${days} gg`
+}
+
+function formatShortDate(dateKey: string): string {
+  const [, m, d] = dateKey.split('-')
+  return `${d}/${m}`
 }
