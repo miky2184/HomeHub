@@ -1,9 +1,24 @@
-import { useEffect, useState } from 'react'
-import { Boxes, Check, House, ShoppingCart } from 'lucide-react'
-import { useAddShoppingItem, useInventoryAlerts, useInventoryContainers } from '../api/hooks'
+import { useEffect, useState, type CSSProperties } from 'react'
+import { Boxes, Check, House, Minus, Plus, Search, ShoppingCart } from 'lucide-react'
+import { useAddShoppingItem, useAdjustItemQuantity, useInventoryAlerts, useInventoryContainers } from '../api/hooks'
 import { Card } from '../components/Card'
-import type { InventoryAlert } from '../api/types'
+import type { InventoryAlert, InventoryItem } from '../api/types'
 import { ghostButtonStyle, inputStyle } from '../styles/controls'
+
+const quantityBtnStyle: CSSProperties = {
+  width: 28,
+  height: 28,
+  flexShrink: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 0,
+  borderRadius: '50%',
+  border: '1px solid var(--border-strong)',
+  background: 'var(--bg-input)',
+  color: 'var(--text-secondary)',
+  cursor: 'pointer',
+}
 
 const REASON_LABEL: Record<InventoryAlert['reason'], string> = {
   expired: 'Scaduto',
@@ -21,12 +36,14 @@ export function InventoryPage() {
   const { data: alerts, isLoading } = useInventoryAlerts()
   const { data: containers, isLoading: isLoadingContainers } = useInventoryContainers()
   const addShoppingItem = useAddShoppingItem()
+  const adjustQuantity = useAdjustItemQuantity()
   // Solo un feedback visivo locale ("Aggiunto ✓"): non c'è un modo per
   // sapere se un nome è già sulla lista Bring! senza interrogarla, e non
   // è comunque un problema — aggiungere due volte lo stesso nome aggiorna
   // la voce invece di duplicarla (vedi adapters/bring.py:save_item).
   const [added, setAdded] = useState<Set<number>>(new Set())
   const [selectedContainerId, setSelectedContainerId] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     if (selectedContainerId === null && containers && containers.length > 0) {
@@ -43,13 +60,28 @@ export function InventoryPage() {
     )
   }
 
+  function handleAdjust(itemId: number, delta: number) {
+    adjustQuantity.mutate({ itemId, delta })
+  }
+
   const selectedContainer = containers?.find((c) => c.id === selectedContainerId)
+
+  // Ricerca trasversale: filtra gli oggetti già scaricati (containers include
+  // già tutti gli items) su tutti i contenitori, non solo quello selezionato
+  // — per trovare "dov'è finito il tonno" senza aprirli uno a uno.
+  const trimmedSearch = search.trim().toLowerCase()
+  const searchResults = trimmedSearch
+    ? (containers ?? [])
+        .flatMap((c) => c.items.map((item) => ({ item, containerName: c.name })))
+        .filter(({ item }) => item.name.toLowerCase().includes(trimmedSearch))
+    : null
 
   return (
     <>
       <h1 style={{ fontSize: 'var(--fs-greeting)', margin: '4px 0 8px' }}>Casa</h1>
       <p style={{ margin: '0 0 12px', color: 'var(--text-secondary)', fontSize: 'var(--fs-label)' }}>
-        Sola lettura: per gestire gli oggetti (aggiungere, modificare, consumare) usa l'app{' '}
+        Da qui puoi solo aggiustare le quantità (+/-); per aggiungere, modificare o eliminare oggetti
+        usa l'app{' '}
         <a
           href="https://miky2184.ddns.net:1032/"
           target="_blank"
@@ -103,6 +135,36 @@ export function InventoryPage() {
         </Card>
       ))}
 
+      <Card label="Cerca in tutti i contenitori" icon={Search} category="casa">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Es. tonno, acqua, vino…"
+          style={{ ...inputStyle, width: '100%' }}
+        />
+
+        {searchResults && searchResults.length === 0 && (
+          <p style={{ margin: '12px 0 0', color: 'var(--text-muted)', fontSize: 'var(--fs-body)' }}>
+            Nessun oggetto trovato.
+          </p>
+        )}
+
+        {searchResults && searchResults.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            {searchResults.map(({ item, containerName }) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                subtitle={containerName}
+                onAdjust={(delta) => handleAdjust(item.id, delta)}
+                disabled={adjustQuantity.isPending}
+              />
+            ))}
+          </div>
+        )}
+      </Card>
+
       <Card label="Sfoglia per contenitore" icon={Boxes} category="casa">
         {isLoadingContainers && <p style={{ color: 'var(--text-secondary)' }}>Caricamento…</p>}
 
@@ -131,45 +193,78 @@ export function InventoryPage() {
             )}
 
             {selectedContainer?.items.map((item) => (
-              <div
+              <ItemRow
                 key={item.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '6px 0',
-                  borderBottom: '1px solid var(--border)',
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600 }}>
-                    {item.name}
-                  </span>
-                  {item.category && (
-                    <span style={{ marginLeft: 8, fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
-                      {item.category}
-                    </span>
-                  )}
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  {item.quantity != null && (
-                    <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-secondary)' }}>
-                      {item.quantity} {item.unit ?? ''}
-                    </span>
-                  )}
-                  {item.expiry_date && (
-                    <p style={{ margin: 0, fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
-                      Scad. {formatShortDate(item.expiry_date)}
-                    </p>
-                  )}
-                </div>
-              </div>
+                item={item}
+                subtitle={item.category}
+                onAdjust={(delta) => handleAdjust(item.id, delta)}
+                disabled={adjustQuantity.isPending}
+              />
             ))}
           </>
         )}
       </Card>
     </>
+  )
+}
+
+function ItemRow({
+  item,
+  subtitle,
+  onAdjust,
+  disabled,
+}: {
+  item: InventoryItem
+  subtitle?: string | null
+  onAdjust: (delta: number) => void
+  disabled: boolean
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 12,
+        padding: '6px 0',
+        borderBottom: '1px solid var(--border)',
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600 }}>
+          {item.name}
+        </span>
+        {subtitle && (
+          <span style={{ marginLeft: 8, fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>{subtitle}</span>
+        )}
+        {item.expiry_date && (
+          <p style={{ margin: 0, fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
+            Scad. {formatShortDate(item.expiry_date)}
+          </p>
+        )}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <button
+          onClick={() => onAdjust(-1)}
+          disabled={disabled}
+          title="Diminuisci quantità"
+          style={quantityBtnStyle}
+        >
+          <Minus size={14} />
+        </button>
+        <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-secondary)', minWidth: 44, textAlign: 'center' }}>
+          {item.quantity ?? '—'} {item.unit ?? ''}
+        </span>
+        <button
+          onClick={() => onAdjust(1)}
+          disabled={disabled}
+          title="Aumenta quantità"
+          style={quantityBtnStyle}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+    </div>
   )
 }
 

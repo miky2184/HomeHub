@@ -187,6 +187,15 @@ class InventoryContainer(BaseModel):
     items: list[InventoryItem]
 
 
+class InventoryQuantityDelta(BaseModel):
+    """+1/-1 (o +6, -1...) sulla quantità di un oggetto esistente da Casa —
+    es. +6 comprando un fardello d'acqua, -1 bevendo un vino. Unica scrittura
+    che HomeHub fa su home_inventory: niente creazione/eliminazione oggetti,
+    quella resta in home_inventory_web."""
+
+    delta: int
+
+
 class HourlyForecast(BaseModel):
     time: datetime
     temperature_c: float | None = None

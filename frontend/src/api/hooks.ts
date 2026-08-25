@@ -6,6 +6,7 @@ import type {
   HomeSummary,
   InventoryAlert,
   InventoryContainer,
+  InventoryItem,
   MenuSettings,
   MenuWeek,
   SchoolMenuCycleAnchor,
@@ -218,7 +219,9 @@ export function useRemoveShoppingItem() {
   })
 }
 
-// --- Home inventory (sola lettura: la gestione resta nella web app dedicata) ---
+// --- Home inventory (per lo più sola lettura: creare/eliminare oggetti resta
+// nella web app dedicata; l'unica scrittura da qui è l'aggiustamento rapido
+// della quantità, vedi useAdjustItemQuantity) ---
 
 export function useInventoryAlerts() {
   return useQuery({
@@ -233,6 +236,21 @@ export function useInventoryContainers() {
     queryKey: ['inventory-containers'],
     queryFn: () => api.get<InventoryContainer[]>('/api/inventory/containers'),
     refetchInterval: 15 * 60_000,
+  })
+}
+
+export function useAdjustItemQuantity() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ itemId, delta }: { itemId: number; delta: number }) =>
+      api.patch<InventoryItem>(`/api/inventory/items/${itemId}/quantity`, { delta }),
+    onSuccess: () => {
+      // Niente aggiornamento ottimistico: la quantità aggiornata compare sia
+      // nel browse per contenitore sia (se in scadenza) negli alert di Home.
+      queryClient.invalidateQueries({ queryKey: ['inventory-containers'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory-alerts'] })
+      queryClient.invalidateQueries({ queryKey: ['home-summary'] })
+    },
   })
 }
 

@@ -1,11 +1,11 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.base import get_db
-from app.schemas.common import InventoryAlert, InventoryContainer
-from app.services.aggregator import get_inventory_alerts, get_inventory_by_container
+from app.schemas.common import InventoryAlert, InventoryContainer, InventoryItem, InventoryQuantityDelta
+from app.services.aggregator import adjust_item_quantity, get_inventory_alerts, get_inventory_by_container
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
@@ -25,3 +25,14 @@ def list_containers(db: Session = Depends(get_db)) -> list[InventoryContainer]:
     del freezer senza doverlo aprire (sostituisce il foglio di carta sul
     frigo)."""
     return get_inventory_by_container(db)
+
+
+@router.patch("/items/{item_id}/quantity", response_model=InventoryItem)
+def adjust_quantity(item_id: int, payload: InventoryQuantityDelta, db: Session = Depends(get_db)) -> InventoryItem:
+    """Unica scrittura consentita da Casa su home_inventory: +/- rapido sulla
+    quantità (comprare un fardello d'acqua, bere un vino), senza dover aprire
+    home_inventory_web. Non crea né elimina oggetti."""
+    item = adjust_item_quantity(db, item_id, payload.delta)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Oggetto non trovato")
+    return item

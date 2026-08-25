@@ -160,6 +160,44 @@ def get_inventory_by_container(db: Session) -> list[InventoryContainer]:
     return result
 
 
+def adjust_item_quantity(db: Session, item_id: int, delta: int) -> InventoryItem | None:
+    """Unica scrittura di HomeHub su home_inventory: +/- rapido sulla
+    quantità di un oggetto già esistente (es. +6 comprando un fardello
+    d'acqua, -1 bevendo un vino), per evitare di aprire home_inventory_web
+    solo per questo. Clampata a 0 (mai negativa) e a differenza di
+    home_inventory_web non elimina l'oggetto quando arriva a zero — restare
+    conservativi da qui, l'eliminazione resta compito della web app dedicata.
+    None se l'oggetto non esiste (container_id/category_id invariati)."""
+    row = db.execute(select(items_table.c.id, items_table.c.quantity).where(items_table.c.id == item_id)).first()
+    if row is None:
+        return None
+
+    new_quantity = max(0, (row.quantity or 0) + delta)
+    db.execute(items_table.update().where(items_table.c.id == item_id).values(quantity=new_quantity))
+    db.commit()
+
+    updated = db.execute(
+        select(
+            items_table.c.id,
+            items_table.c.name,
+            items_table.c.quantity,
+            items_table.c.unit_measure,
+            items_table.c.expiry_date,
+            categories_table.c.name.label("category_name"),
+        )
+        .select_from(items_table.outerjoin(categories_table, items_table.c.category_id == categories_table.c.id))
+        .where(items_table.c.id == item_id)
+    ).first()
+    return InventoryItem(
+        id=updated.id,
+        name=updated.name,
+        quantity=updated.quantity,
+        unit=updated.unit_measure,
+        expiry_date=updated.expiry_date,
+        category=updated.category_name,
+    )
+
+
 TODO_PRIORITY_ORDER = {"alta": 0, "media": 1, "bassa": 2}
 
 

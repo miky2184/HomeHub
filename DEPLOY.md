@@ -27,10 +27,11 @@ Apri `backend/.env` e compila **almeno**:
 - `DATABASE_URL`: connection string reale verso il Postgres esistente sulla LAN, con lo schema dedicato, es.
   `postgresql+psycopg://homehub:LA_TUA_PASSWORD@IP_POSTGRES:5432/nome_db`
 - Lascia vuote per ora `GOOGLE_*`, `BRING_*`, `*_APP_*`: senza queste, quegli adapter continuano a rispondere con dati di esempio (vedi ARCHITECTURE.md §9) — non bloccano l'avvio, solo quella parte di Home resta "finta" finché non li configuriamo uno per uno.
-- Home inventory non ha variabili da compilare (legge sempre direttamente lo schema `home_inventory` sullo stesso Postgres). L'unico requisito è che l'utente Postgres di `DATABASE_URL` (es. `homehub`) abbia **SELECT** su `home_inventory.items` e `home_inventory.containers` — se non l'ha già (es. perché è un ruolo diverso da quello usato da `home_inventory_web`), concedilo con:
+- Home inventory non ha variabili da compilare (legge/scrive sempre direttamente lo schema `home_inventory` sullo stesso Postgres). L'utente Postgres di `DATABASE_URL` (es. `homehub`) deve avere **SELECT** su `home_inventory.items`, `home_inventory.containers` e `home_inventory.categories`, più **UPDATE** su `home_inventory.items` (serve solo per il +/- rapido di quantità dalla tab Casa — creare/eliminare oggetti resta compito di `home_inventory_web`) — se non li ha già (es. perché è un ruolo diverso da quello usato da `home_inventory_web`), concedili con:
   ```sql
   GRANT USAGE ON SCHEMA home_inventory TO homehub;
   GRANT SELECT ON home_inventory.items, home_inventory.containers, home_inventory.categories TO homehub;
+  GRANT UPDATE (quantity) ON home_inventory.items TO homehub;
   ```
 - Stesso discorso per `dieta.menu_settimanale` (cena di casa) — se non è già coperta dal grant fatto per `dieta.allenamento`:
   ```sql
