@@ -18,10 +18,13 @@ import pathlib
 import secrets
 import sys
 
+from dotenv import dotenv_values
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from app.core.auth import hash_password  # noqa: E402
-from app.core.config import get_settings  # noqa: E402
+
+ENV_FILE = pathlib.Path(__file__).resolve().parent.parent / ".env"
 
 
 def main() -> None:
@@ -38,8 +41,13 @@ def main() -> None:
     print("\nAggiungi (o sostituisci) in backend/.env:\n")
     print(f"APP_PASSWORD_HASH={password_hash}")
 
-    settings = get_settings()
-    if not settings.session_secret_key:
+    # Guardiamo il file .env così com'è su disco, non get_settings(): quella
+    # una volta chiamata genera già in memoria una chiave provvisoria se
+    # manca (per non bloccare lo sviluppo locale), quindi la vedrebbe sempre
+    # "già impostata" anche quando .env non ce l'ha — e questa riga non
+    # comparirebbe mai.
+    existing = dotenv_values(ENV_FILE)
+    if not existing.get("SESSION_SECRET_KEY"):
         print(f"SESSION_SECRET_KEY={secrets.token_hex(32)}")
     print(
         "\nSenza SESSION_SECRET_KEY in .env ne viene generata una diversa "
