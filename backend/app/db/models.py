@@ -67,6 +67,14 @@ class TrainingSession(Base):
     day_of_week: Mapped[int] = mapped_column(Integer)
     session_text: Mapped[str] = mapped_column(Text)
     done: Mapped[bool] = mapped_column(Boolean, default=False)
+    # True se session_text è ancora solo uno specchio del piano Garmin (mai
+    # modificato a mano) — permette a get_week_training di eliminare la riga
+    # quando Garmin non pianifica più nulla quel giorno (es. allenamento
+    # spostato a domani), invece di lasciare un allenamento fantasma per
+    # sempre. False appena l'utente lo modifica da UI (PUT /api/training):
+    # da quel momento è un inserimento suo, non va più cancellato solo
+    # perché Garmin cambia idea.
+    from_garmin: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

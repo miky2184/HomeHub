@@ -43,6 +43,17 @@ async def get_week_training(week_start_date: date, db: Session = Depends(get_db)
         # dieta.allenamento solo per oggi o giorni già passati.
         activity = get_dieta_activity(db, session_date) if session_date <= today else None
 
+        if session is not None and session.from_garmin and garmin_title is None and activity is None:
+            # La riga era solo uno specchio del piano Garmin per questo
+            # giorno, e Garmin non lo pianifica più (spostato altrove,
+            # rimosso...): niente da mostrare più qui, altrimenti resta un
+            # allenamento fantasma per sempre (Garmin non "cancella" mai
+            # quello che abbiamo già scritto, aggiorna solo se c'è un piano
+            # attuale — vedi sotto).
+            db.delete(session)
+            db.commit()
+            session = None
+
         effective_text = garmin_title or (session.session_text if session else None) or (
             activity.titolo if activity else None
         )
@@ -55,6 +66,7 @@ async def get_week_training(week_start_date: date, db: Session = Depends(get_db)
                 day_of_week=day_of_week,
                 session_text=effective_text,
                 done=bool(activity),
+                from_garmin=bool(garmin_title),
             )
             db.add(session)
             db.commit()
@@ -63,6 +75,9 @@ async def get_week_training(week_start_date: date, db: Session = Depends(get_db)
             changed = False
             if garmin_title and session.session_text != garmin_title:
                 session.session_text = garmin_title
+                changed = True
+            if garmin_title and not session.from_garmin:
+                session.from_garmin = True
                 changed = True
             if activity and not session.done:
                 session.done = True
@@ -111,8 +126,12 @@ def upsert_training_session(
     )
     if session:
         session.session_text = payload.session_text
+        # Modificato a mano: da qui in poi non è più solo uno specchio del
+        # piano Garmin, get_week_training non deve più poterlo eliminare da
+        # solo se Garmin cambia idea su questo giorno.
+        session.from_garmin = False
     else:
-        session = TrainingSessionModel(**payload.model_dump(), done=False)
+        session = TrainingSessionModel(**payload.model_dump(), done=False, from_garmin=False)
         db.add(session)
     db.commit()
     db.refresh(session)

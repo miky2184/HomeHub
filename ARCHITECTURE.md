@@ -177,7 +177,7 @@ Implicazioni di design:
 
 Tabelle indicative nello schema dedicato `homehub`:
 - `school_menu(id, week_start_date, day_of_week, meal_text, created_at, updated_at)`
-- `training_plan(id, week_start_date, day_of_week, session_text, done boolean, created_at, updated_at)`
+- `training_plan(id, week_start_date, day_of_week, session_text, done boolean, from_garmin boolean, created_at, updated_at)` — `from_garmin` distingue le righe ancora solo specchio del piano Garmin (auto-eliminabili se Garmin non pianifica più nulla quel giorno) da quelle modificate a mano, vedi migrazione `0004_training_from_garmin.py`
 - `todo_item(id, title, assignee, priority, due_date, done boolean, created_at, updated_at)` — vedi migrazione `0003_todo.py`
 - `cache_entries(source, key, payload jsonb, fetched_at)` *(opzionale, se si preferisce cache persistente a cache in memoria)*
 - `app_config(key, value)` *(config runtime non sensibile; i secret restano in `.env`, non a DB — usata es. per `guest_mode`, il flag "true"/"false" della modalità ospiti)*
