@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.base import get_db
 from app.db.models import TrainingSession as TrainingSessionModel
-from app.schemas.common import TrainingActivityDetail, TrainingSessionOut, TrainingSessionUpsert
+from app.schemas.common import TrainingActivityDetail, TrainingSessionOut
 from app.services.aggregator import dieta_activity_summary, get_dieta_activity, get_garmin_scheduled_workout
 
 router = APIRouter(prefix="/api/training", tags=["training"])
@@ -112,36 +112,6 @@ def get_activity_detail(activity_date: date, db: Session = Depends(get_db)) -> T
     if not activity:
         raise HTTPException(status_code=404, detail="Nessun allenamento svolto trovato per questa data")
     return activity
-
-
-@router.put("", response_model=TrainingSessionOut)
-def upsert_training_session(
-    payload: TrainingSessionUpsert, db: Session = Depends(get_db)
-) -> TrainingSessionOut:
-    session = db.scalar(
-        select(TrainingSessionModel).where(
-            TrainingSessionModel.week_start_date == payload.week_start_date,
-            TrainingSessionModel.day_of_week == payload.day_of_week,
-        )
-    )
-    if session:
-        session.session_text = payload.session_text
-        # Modificato a mano: da qui in poi non è più solo uno specchio del
-        # piano Garmin, get_week_training non deve più poterlo eliminare da
-        # solo se Garmin cambia idea su questo giorno.
-        session.from_garmin = False
-    else:
-        session = TrainingSessionModel(**payload.model_dump(), done=False, from_garmin=False)
-        db.add(session)
-    db.commit()
-    db.refresh(session)
-    return TrainingSessionOut(
-        id=session.id,
-        week_start_date=session.week_start_date,
-        day_of_week=session.day_of_week,
-        session_text=session.session_text,
-        done=session.done,
-    )
 
 
 @router.patch("/{session_id}/done", response_model=TrainingSessionOut)

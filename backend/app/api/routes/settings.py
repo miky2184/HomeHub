@@ -56,7 +56,16 @@ async def update_app_settings(payload: AppSettingsUpdate, db: Session = Depends(
     changed = payload.model_dump(exclude_unset=True)
 
     for key, value in changed.items():
-        is_empty = value is None or (isinstance(value, str) and value.strip() == "")
+        # Vuoto per qualunque tipo (None, stringa vuota/spazi, o [] per i
+        # campi lista come google_calendar_ids) rimuove l'override e torna
+        # a .env — prima le liste non erano riconosciute, quindi svuotare
+        # del tutto un campo lista lo salvava come override "esplicitamente
+        # vuoto" invece di farlo tornare a .env come documentato.
+        is_empty = (
+            value is None
+            or (isinstance(value, str) and value.strip() == "")
+            or (isinstance(value, list) and len(value) == 0)
+        )
         row = db.get(AppConfig, key)
         if is_empty:
             if row is not None:

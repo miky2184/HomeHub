@@ -3,6 +3,7 @@ import { Boxes, Check, House, Minus, Plus, Search, ShoppingCart } from 'lucide-r
 import { useAddShoppingItem, useAdjustItemQuantity, useInventoryAlerts, useInventoryContainers } from '../api/hooks'
 import { Card } from '../components/Card'
 import type { InventoryAlert, InventoryItem } from '../api/types'
+import { formatShortDate } from '../lib/date'
 import { ghostButtonStyle, inputStyle } from '../styles/controls'
 
 const quantityBtnStyle: CSSProperties = {
@@ -273,9 +274,4 @@ function expiryLabel(days: number | null): string {
   if (days < 0) return `Scaduto da ${Math.abs(days)} gg`
   if (days === 0) return 'Scade oggi'
   return `Tra ${days} gg`
-}
-
-function formatShortDate(dateKey: string): string {
-  const [, m, d] = dateKey.split('-')
-  return `${d}/${m}`
 }

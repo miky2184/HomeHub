@@ -11,6 +11,7 @@ import {
 import { Card } from '../components/Card'
 import { Modal } from '../components/Modal'
 import { MonthCalendar } from '../components/MonthCalendar'
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { DAY_LABELS, getWeekDates, isSameDay, toDateKey } from '../lib/date'
 import { buttonStyle, ghostButtonStyle, inputStyle } from '../styles/controls'
 
@@ -66,6 +67,10 @@ export function CalendarPage() {
   const [editing, setEditing] = useState<CalendarEvent | null>(null)
   const [deleting, setDeleting] = useState<CalendarEvent | null>(null)
 
+  // Vedi ChoresPage/SettingsPage: non perdere un evento a metà o una modale
+  // di modifica aperta solo perché è scattato l'idle redirect.
+  useUnsavedChanges(title.trim() !== '' || editing !== null)
+
   useEffect(() => {
     if (!calendarId && calendars && calendars.length > 0) setCalendarId(calendars[0].id)
   }, [calendars, calendarId])
@@ -84,7 +89,17 @@ export function CalendarPage() {
 
   const eventDateKeys = useMemo(() => new Set(eventsByDay.keys()), [eventsByDay])
   const selectedDayEvents = eventsByDay.get(toDateKey(selectedDate)) ?? []
-  const weekDates = useMemo(() => getWeekDates(new Date()), [])
+  // `today` invece di `new Date()` diretto nel deps array: su questo kiosk
+  // sempre acceso, se la pagina Agenda resta montata (uso attivo, che
+  // resetta il timer di inattività) a cavallo di un cambio di giorno,
+  // "Questa settimana" — e il pallino "oggi" più sotto — non devono restare
+  // fermi sulla settimana di ieri finché non si ricarica la pagina.
+  const [today, setToday] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setToday(new Date()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+  const weekDates = useMemo(() => getWeekDates(today), [today])
 
   function handleAdd() {
     if (!title.trim() || !start || !calendarId) return
@@ -147,7 +162,7 @@ export function CalendarPage() {
       <Card label="Questa settimana" icon={CalendarDays} category="agenda">
         {weekDates.map((day, i) => {
           const dayEvents = eventsByDay.get(toDateKey(day)) ?? []
-          const isToday = isSameDay(day, new Date())
+          const isToday = isSameDay(day, today)
           return (
             <div key={i} style={{ padding: '8px 0', borderBottom: i < 6 ? '1px solid var(--border)' : 'none' }}>
               <p

@@ -1,5 +1,5 @@
 import type { TodoPriority } from '../api/types'
-import { toDateKey } from './date'
+import { formatShortDate, toDateKey } from './date'
 
 export const PRIORITY_META: Record<TodoPriority, { label: string; color: string }> = {
   alta: { label: 'Alta', color: 'var(--danger)' },
@@ -8,11 +8,6 @@ export const PRIORITY_META: Record<TodoPriority, { label: string; color: string 
 }
 
 export const PRIORITY_OPTIONS: TodoPriority[] = ['alta', 'media', 'bassa']
-
-function formatShortDate(dateKey: string): string {
-  const [, m, d] = dateKey.split('-')
-  return `${d}/${m}`
-}
 
 /** Etichetta + flag "scaduto" per una scadenza, confrontata con oggi in
  * locale (niente conversione UTC, stesso approccio di lib/date.ts). */

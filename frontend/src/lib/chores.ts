@@ -1,9 +1,4 @@
-import { toDateKey } from './date'
-
-function formatShortDate(dateKey: string): string {
-  const [, m, d] = dateKey.split('-')
-  return `${d}/${m}`
-}
+import { formatShortDate, toDateKey } from './date'
 
 /** Etichetta + flag "urgente" (scaduta, da fare oggi, o mai fatta: in
  * evidenza) per un'attività di manutenzione, confrontata con oggi in

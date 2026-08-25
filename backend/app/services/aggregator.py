@@ -192,6 +192,12 @@ def adjust_item_quantity(db: Session, item_id: int, delta: int) -> InventoryItem
         .select_from(items_table.outerjoin(categories_table, items_table.c.category_id == categories_table.c.id))
         .where(items_table.c.id == item_id)
     ).first()
+    if updated is None:
+        # L'oggetto è stato eliminato da home_inventory_web tra la SELECT e
+        # qui (finestra reale: UPDATE+COMMIT in mezzo) — stesso caso "non
+        # trovato" di sopra, non un errore imprevisto: la route deve poter
+        # rispondere 404 invece di un 500 su un attributo di None.
+        return None
     return InventoryItem(
         id=updated.id,
         name=updated.name,

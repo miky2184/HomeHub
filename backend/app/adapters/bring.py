@@ -17,6 +17,8 @@ lavora su una lista finta in memoria, per sviluppare/testare il frontend
 senza un vero account.
 """
 
+import asyncio
+
 import aiohttp
 from bring_api import Bring, BringItemsResponse
 
@@ -41,6 +43,14 @@ class BringAdapter(WritableSourceAdapter):
         self._session: aiohttp.ClientSession | None = None
         self._bring: Bring | None = None
         self._list_uuid: str | None = None
+        # Login e selezione lista sono lazy (solo alla prima chiamata) senza
+        # essere idempotenti a metà: senza questo lock, due richieste quasi
+        # simultanee sul client ancora "vuoto" (subito dopo l'avvio, o dopo
+        # un cambio credenziali che azzera _bring, vedi aclose) vedrebbero
+        # entrambe self._bring is None ed entrerebbero insieme, oppure la
+        # seconda vedrebbe self._bring già assegnato dalla prima e salterebbe
+        # login() usando un client non ancora autenticato.
+        self._client_lock = asyncio.Lock()
 
     @property
     def is_configured(self) -> bool:
@@ -52,19 +62,20 @@ class BringAdapter(WritableSourceAdapter):
         di autenticarsi ad ogni richiesta). Se le credenziali cambiano da
         Impostazioni, api/routes/settings.py chiama aclose() per farle
         rileggere qui alla prossima chiamata."""
-        if self._bring is None:
-            es = effective_settings()
-            self._session = aiohttp.ClientSession()
-            self._bring = Bring(self._session, es.bring_email, es.bring_password)
-            await self._bring.login()
-        if self._list_uuid is None:
-            lists = (await self._bring.load_lists()).lists
-            if not lists:
-                raise RuntimeError("Nessuna lista Bring! trovata per questo account")
-            # TODO: se in futuro serve gestire più liste, esporre una scelta
-            # invece di prendere sempre la prima della famiglia
-            self._list_uuid = lists[0].listUuid
-        return self._bring, self._list_uuid
+        async with self._client_lock:
+            if self._bring is None:
+                es = effective_settings()
+                self._session = aiohttp.ClientSession()
+                self._bring = Bring(self._session, es.bring_email, es.bring_password)
+                await self._bring.login()
+            if self._list_uuid is None:
+                lists = (await self._bring.load_lists()).lists
+                if not lists:
+                    raise RuntimeError("Nessuna lista Bring! trovata per questo account")
+                # TODO: se in futuro serve gestire più liste, esporre una scelta
+                # invece di prendere sempre la prima della famiglia
+                self._list_uuid = lists[0].listUuid
+            return self._bring, self._list_uuid
 
     async def aclose(self) -> None:
         """Chiude la sessione HTTP e azzera tutto lo stato cache (client

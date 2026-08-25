@@ -1,12 +1,16 @@
 export const DAY_LABELS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
 
-/** Lunedì della settimana corrente, in formato YYYY-MM-DD (coerente col backend). */
+/** Lunedì della settimana corrente, in formato YYYY-MM-DD (coerente col
+ * backend). toDateKey (sotto), non toISOString: quest'ultima converte in
+ * UTC, e tra le 00:00 e le ~02:00 locali (Italia, UTC+2 in estate) darebbe
+ * la data di ieri — un lunedì diventerebbe domenica, sbagliando la
+ * settimana per Allenamenti/Menu proprio nelle prime ore del giorno. */
 export function currentWeekStart(): string {
   const now = new Date()
   const day = (now.getDay() + 6) % 7 // 0 = lunedì
   const monday = new Date(now)
   monday.setDate(now.getDate() - day)
-  return monday.toISOString().slice(0, 10)
+  return toDateKey(monday)
 }
 
 export function todayDayOfWeek(): number {
@@ -24,6 +28,14 @@ export function toDateKey(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+/** "YYYY-MM-DD" -> "DD/MM", per le etichette brevi di scadenza/data (Todo,
+ * Manutenzione, Home Inventory — prima era ridefinita identica in ognuno
+ * di questi file). */
+export function formatShortDate(dateKey: string): string {
+  const [, m, d] = dateKey.split('-')
+  return `${d}/${m}`
 }
 
 /** Data di un giorno del piano allenamenti, dato lunedì della settimana

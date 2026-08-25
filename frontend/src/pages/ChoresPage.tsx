@@ -4,6 +4,7 @@ import { useCreateChore, useDeleteChore, useChores, useUpdateChore } from '../ap
 import type { Chore, ChoreInput } from '../api/types'
 import { Card } from '../components/Card'
 import { Modal } from '../components/Modal'
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { choreDueInfo, intervalLabel } from '../lib/chores'
 import { toDateKey } from '../lib/date'
 import { buttonStyle, ghostButtonStyle, inputStyle } from '../styles/controls'
@@ -28,6 +29,10 @@ export function ChoresPage() {
   const [form, setForm] = useState<ChoreInput>(EMPTY_FORM)
   const [editing, setEditing] = useState<Chore | null>(null)
   const [deleting, setDeleting] = useState<Chore | null>(null)
+
+  // Il form "Nuova attività" a metà (o una modale di modifica aperta) non
+  // deve andare perso se l'inattività riporta a Home — vedi useIdleRedirect.
+  useUnsavedChanges(form.title.trim() !== '' || editing !== null)
 
   function handleCreate() {
     if (!form.title.trim() || !form.interval_days || form.interval_days < 1) return

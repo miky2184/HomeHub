@@ -133,12 +133,6 @@ class TrainingActivityDetail(BaseModel):
     swolf: float | None = None
 
 
-class TrainingSessionUpsert(BaseModel):
-    week_start_date: date
-    day_of_week: int
-    session_text: str
-
-
 class ShoppingItem(BaseModel):
     id: str
     name: str

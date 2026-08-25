@@ -4,6 +4,7 @@ import { useCreateTodo, useDeleteTodo, useTodos, useUpdateTodo } from '../api/ho
 import type { TodoItem, TodoItemInput, TodoPriority } from '../api/types'
 import { Card } from '../components/Card'
 import { Modal } from '../components/Modal'
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { dueDateInfo, PRIORITY_META, PRIORITY_OPTIONS } from '../lib/todo'
 import { buttonStyle, ghostButtonStyle, inputStyle } from '../styles/controls'
 
@@ -19,6 +20,10 @@ export function TodoPage() {
   const [showDone, setShowDone] = useState(false)
   const [editing, setEditing] = useState<TodoItem | null>(null)
   const [deleting, setDeleting] = useState<TodoItem | null>(null)
+
+  // Vedi ChoresPage/SettingsPage: non perdere un nuovo todo a metà o una
+  // modale di modifica aperta solo perché è scattato l'idle redirect.
+  useUnsavedChanges(form.title.trim() !== '' || editing !== null)
 
   function handleCreate() {
     if (!form.title.trim()) return

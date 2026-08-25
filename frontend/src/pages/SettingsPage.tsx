@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Calendar, CalendarClock, ChefHat, CloudSun, Cookie, Home, Palette, Plug, ShoppingBasket, ShoppingCart, Users, Watch } from 'lucide-react'
 import type { SchoolMenuTemplateEntry, SnackTemplateEntry } from '../api/types'
 import {
@@ -14,6 +14,7 @@ import { DAY_LABELS } from '../lib/date'
 import { BACKGROUND_PALETTE, DEFAULT_BACKGROUND_THEME } from '../lib/palette'
 import { buttonStyle, ghostButtonStyle, inputStyle } from '../styles/controls'
 import { CATEGORY_COLORS, type Category } from '../styles/categories'
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 
 const CYCLE_WEEKS = [1, 2, 3, 4]
 const WEEKDAY_LABELS = DAY_LABELS.slice(0, 5)
@@ -44,6 +45,10 @@ function secretPayload(field: string, draft: SecretDraft): Record<string, string
   if (draft.clear) return { [field]: '' }
   if (draft.value.trim()) return { [field]: draft.value.trim() }
   return {}
+}
+
+function isSecretDirty(draft: SecretDraft): boolean {
+  return draft.value !== '' || draft.clear
 }
 
 function SecretField({
@@ -154,12 +159,25 @@ function FamigliaAspettoSection() {
   const updateSettings = useUpdateAppSettings()
   const [familyName, setFamilyName] = useState('')
   const [shoppingLimit, setShoppingLimit] = useState('')
+  // Solo al primo caricamento: se risincronizzassimo ad ogni cambio di
+  // appSettings, salvare "Sfondo" (mutazione immediata al click, vedi sotto)
+  // rimpiazzerebbe l'oggetto in cache e questo effect ripartirebbe,
+  // cancellando un nome famiglia digitato ma non ancora salvato. Il tab si
+  // smonta/rimonta cambiando sezione, quindi tornare qui rilegge comunque
+  // dati freschi.
+  const initialized = useRef(false)
 
   useEffect(() => {
-    if (!appSettings) return
+    if (!appSettings || initialized.current) return
+    initialized.current = true
     setFamilyName(appSettings.family_name)
     setShoppingLimit(String(appSettings.shopping_preview_limit))
   }, [appSettings])
+
+  useUnsavedChanges(
+    !!appSettings &&
+      (familyName !== appSettings.family_name || shoppingLimit !== String(appSettings.shopping_preview_limit))
+  )
 
   const currentTheme = appSettings?.background_theme || DEFAULT_BACKGROUND_THEME
 
@@ -262,13 +280,23 @@ function MeteoSection() {
   const [city, setCity] = useState('')
   const [lat, setLat] = useState('')
   const [lon, setLon] = useState('')
+  // Solo al primo caricamento — vedi commento analogo in FamigliaAspettoSection.
+  const initialized = useRef(false)
 
   useEffect(() => {
-    if (!appSettings) return
+    if (!appSettings || initialized.current) return
+    initialized.current = true
     setCity(appSettings.weather_city)
     setLat(appSettings.weather_latitude?.toString() ?? '')
     setLon(appSettings.weather_longitude?.toString() ?? '')
   }, [appSettings])
+
+  useUnsavedChanges(
+    !!appSettings &&
+      (city !== appSettings.weather_city ||
+        lat !== (appSettings.weather_latitude?.toString() ?? '') ||
+        lon !== (appSettings.weather_longitude?.toString() ?? ''))
+  )
 
   function save() {
     updateSettings.mutate({
@@ -341,14 +369,33 @@ function IntegrazioniSection() {
 
   const [garminEmail, setGarminEmail] = useState('')
   const [garminPassword, setGarminPassword] = useState<SecretDraft>(EMPTY_SECRET)
+  // Solo al primo caricamento: qui ci sono 3 pulsanti "Salva" indipendenti
+  // (Google/Bring!/Garmin) che condividono questo stesso stato — senza la
+  // guardia, salvare Garmin risincronizzerebbe anche i campi Google/Bring!
+  // non ancora salvati, cancellandoli. Vedi commento analogo in
+  // FamigliaAspettoSection.
+  const initialized = useRef(false)
 
   useEffect(() => {
-    if (!appSettings) return
+    if (!appSettings || initialized.current) return
+    initialized.current = true
     setGoogleClientId(appSettings.google_client_id)
     setGoogleCalendarIds(appSettings.google_calendar_ids.join(', '))
     setBringEmail(appSettings.bring_email)
     setGarminEmail(appSettings.garmin_email)
   }, [appSettings])
+
+  useUnsavedChanges(
+    !!appSettings &&
+      (googleClientId !== appSettings.google_client_id ||
+        googleCalendarIds !== appSettings.google_calendar_ids.join(', ') ||
+        bringEmail !== appSettings.bring_email ||
+        garminEmail !== appSettings.garmin_email ||
+        isSecretDirty(googleClientSecret) ||
+        isSecretDirty(googleRefreshToken) ||
+        isSecretDirty(bringPassword) ||
+        isSecretDirty(garminPassword))
+  )
 
   function saveGoogle() {
     const calendarIds = googleCalendarIds.trim()
@@ -474,9 +521,22 @@ function MenuScuolaSection() {
   const [anchorMonday, setAnchorMonday] = useState('')
   const [anchorWeek, setAnchorWeek] = useState(1)
   const [snacks, setSnacks] = useState<Record<string, string>>({})
+  // Solo al primo caricamento: template/ancora/merende hanno 3 pulsanti
+  // "Salva" indipendenti che condividono questo stesso stato e la stessa
+  // query — senza la guardia, salvare le merende risincronizzerebbe anche
+  // le 20 caselle del template non ancora salvate, cancellandole. Vedi
+  // commento analogo in FamigliaAspettoSection.
+  const initialized = useRef(false)
+  // Istantanea di ciò che il server aveva l'ultima volta che abbiamo
+  // sincronizzato, per poter dire "è cambiato qualcosa rispetto al
+  // caricamento" a useUnsavedChanges senza dover ripetere la stessa
+  // trasformazione (school_template/snacks -> record) sia nell'effect che
+  // nel confronto.
+  const initialSnapshot = useRef({ template: {} as Record<string, string>, anchorMonday: '', anchorWeek: 1, snacks: {} as Record<string, string> })
 
   useEffect(() => {
-    if (!menuSettings) return
+    if (!menuSettings || initialized.current) return
+    initialized.current = true
 
     const t: Record<string, string> = {}
     menuSettings.school_template.forEach((e) => {
@@ -484,9 +544,13 @@ function MenuScuolaSection() {
     })
     setTemplate(t)
 
+    let monday = ''
+    let week = 1
     if (menuSettings.cycle_anchor) {
-      setAnchorMonday(menuSettings.cycle_anchor.anchor_monday)
-      setAnchorWeek(menuSettings.cycle_anchor.anchor_cycle_week)
+      monday = menuSettings.cycle_anchor.anchor_monday
+      week = menuSettings.cycle_anchor.anchor_cycle_week
+      setAnchorMonday(monday)
+      setAnchorWeek(week)
     }
 
     const s: Record<string, string> = {}
@@ -494,7 +558,16 @@ function MenuScuolaSection() {
       s[`${e.day_of_week}-${e.snack_type}`] = e.snack_text
     })
     setSnacks(s)
+
+    initialSnapshot.current = { template: t, anchorMonday: monday, anchorWeek: week, snacks: s }
   }, [menuSettings])
+
+  useUnsavedChanges(
+    JSON.stringify(template) !== JSON.stringify(initialSnapshot.current.template) ||
+      anchorMonday !== initialSnapshot.current.anchorMonday ||
+      anchorWeek !== initialSnapshot.current.anchorWeek ||
+      JSON.stringify(snacks) !== JSON.stringify(initialSnapshot.current.snacks)
+  )
 
   function saveTemplate() {
     const entries: SchoolMenuTemplateEntry[] = []

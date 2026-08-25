@@ -33,6 +33,7 @@ Finché GARMIN_EMAIL/GARMIN_PASSWORD non sono configurate (o il setup non è
 stato fatto), l'adapter è semplicemente "non configurato" e non fa nulla.
 """
 
+import threading
 from datetime import date
 from pathlib import Path
 
@@ -52,6 +53,15 @@ class GarminAdapter(SourceAdapter):
 
     def __init__(self) -> None:
         self._client: Garmin | None = None
+        # fetch_calendar_month è sincrono e viene lanciato con
+        # asyncio.to_thread per mesi diversi (Home e Attività possono
+        # chiederne uno ciascuno quasi in contemporanea) — sono thread OS
+        # reali, non semplici coroutine sullo stesso event loop, quindi
+        # serve un threading.Lock (un asyncio.Lock non protegge tra thread
+        # diversi) per non far scattare due login() in parallelo sullo
+        # stesso account: è esattamente il rischio di rate limiting che il
+        # docstring del modulo dice di voler evitare.
+        self._client_lock = threading.Lock()
 
     @property
     def is_configured(self) -> bool:
@@ -59,17 +69,18 @@ class GarminAdapter(SourceAdapter):
         return bool(es.garmin_email and es.garmin_password)
 
     def _get_client(self) -> Garmin:
-        if self._client is None:
-            es = effective_settings()
-            client = Garmin(es.garmin_email, es.garmin_password)
-            # Nessun prompt_mfa passato di proposito: a runtime, se serve
-            # davvero un MFA, deve fallire in modo chiaro (nessun terminale
-            # interattivo qui), non restare in attesa di un input che non
-            # arriverà mai. Il setup una tantum (garmin_login_setup.py) è il
-            # posto giusto per gestire l'MFA.
-            client.login(str(TOKENSTORE_DIR))
-            self._client = client
-        return self._client
+        with self._client_lock:
+            if self._client is None:
+                es = effective_settings()
+                client = Garmin(es.garmin_email, es.garmin_password)
+                # Nessun prompt_mfa passato di proposito: a runtime, se serve
+                # davvero un MFA, deve fallire in modo chiaro (nessun terminale
+                # interattivo qui), non restare in attesa di un input che non
+                # arriverà mai. Il setup una tantum (garmin_login_setup.py) è il
+                # posto giusto per gestire l'MFA.
+                client.login(str(TOKENSTORE_DIR))
+                self._client = client
+            return self._client
 
     def fetch_calendar_month(self, year: int, month: int) -> dict:
         """Dati grezzi del calendario Garmin per un mese intero (allenamenti
