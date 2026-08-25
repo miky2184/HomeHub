@@ -4,6 +4,7 @@ import logging
 import secrets
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,17 @@ class Settings(BaseSettings):
     # da app_config (vedi runtime_settings.py): la "Cambia password" in
     # Impostazioni scrive lì, .env resta solo il valore iniziale. Genera
     # l'hash con backend/scripts/generate_password_hash.py — vedi DEPLOY.md.
+    # In .env va scritto con i "$" raddoppiati ($$): un hash bcrypt è pieno
+    # di "$", e "docker compose" interpola anche il contenuto dei file
+    # caricati con "env_file:" come se fossero riferimenti a variabili
+    # ($UlAhzEuW... veniva letto come "sostituisci con la variabile
+    # UlAhzEuW", inesistente → stringa vuota, troncando l'hash a metà: bug
+    # reale riscontrato in produzione). "$$" è la sequenza che Compose
+    # stesso usa per un "$" letterale, quindi la despia lui da solo passando
+    # il valore al container. Il validator qui sotto la despia anche per chi
+    # lancia il backend fuori Docker (dove .env viene letto raw, senza
+    # quel passaggio di Compose) — vedi backend/scripts/generate_password_hash.py,
+    # che stampa già la versione raddoppiata pronta da incollare.
     app_password_hash: str = ""
     # Chiave per firmare il cookie di sessione (30 giorni, vedi core/auth.py)
     # — deve restare la stessa tra un riavvio e l'altro, altrimenti ogni
@@ -88,6 +100,16 @@ class Settings(BaseSettings):
     cache_ttl_calendar: int = 300
     cache_ttl_bring: int = 120
     cache_ttl_apps: int = 900
+
+    @field_validator("app_password_hash")
+    @classmethod
+    def _unescape_dollar(cls, v: str) -> str:
+        # Vedi il commento sul campo sopra: "$$" -> "$". Un hash bcrypt vero
+        # non contiene mai "$$" di suo (i tre separatori "$2b$12$..." non
+        # sono mai adiacenti), quindi questa sostituzione è sempre sicura
+        # anche se il valore arriva già "giusto" (es. da .env letto fuori
+        # Docker, o da un vecchio hash salvato prima di questa modifica).
+        return v.replace("$$", "$")
 
 
 @lru_cache

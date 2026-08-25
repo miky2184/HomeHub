@@ -38,8 +38,14 @@ def main() -> None:
         raise SystemExit(1)
 
     password_hash = hash_password(password)
+    # "$" raddoppiati: "docker compose" interpola anche il contenuto dei
+    # file caricati con "env_file:" come se fossero riferimenti a variabili
+    # (un hash bcrypt è pieno di "$", quindi verrebbe troncato a metà senza
+    # questo raddoppio — vedi il commento su Settings.app_password_hash in
+    # core/config.py, che lo despia da solo alla lettura).
+    escaped_hash = password_hash.replace("$", "$$")
     print("\nAggiungi (o sostituisci) in backend/.env:\n")
-    print(f"APP_PASSWORD_HASH={password_hash}")
+    print(f"APP_PASSWORD_HASH={escaped_hash}")
 
     # Guardiamo il file .env così com'è su disco, non get_settings(): quella
     # una volta chiamata genera già in memoria una chiave provvisoria se

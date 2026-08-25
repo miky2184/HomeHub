@@ -70,6 +70,13 @@ cd ..
 
 Copia le righe stampate in `backend/.env`. Senza `APP_PASSWORD_HASH` il login resta disattivato (tutte le richieste passano, comodo appena dopo aver aggiornato il deploy con questa versione) — compilalo prima di lasciare l'app raggiungibile stabilmente. `SESSION_SECRET_KEY` va messa una volta e non toccata più: cambiarla (o lasciarla vuota, nel qual caso ne viene generata una diversa ad ogni riavvio) disconnette tutti quelli che avevano già fatto login.
 
+> **Importante — `APP_PASSWORD_HASH` con i "$" già raddoppiati**: lo script li raddoppia da solo (`$$` invece di `$`) prima di stamparlo, copia la riga esattamente com'è. Un hash bcrypt è pieno di `$` (es. `$2b$12$...`), e `docker compose` interpola anche il contenuto dei file caricati con `env_file:` come se fossero riferimenti a variabili — un `$` singolo seguito da lettere (es. il sale dopo l'ultimo `$`) verrebbe letto come "sostituisci con questa variabile", inesistente, troncando l'hash a metà con un `WARN[...] variable is not set` e un login che dà sempre "password errata" pur essendo quella giusta (bug reale riscontrato). `$$` è la sequenza che Compose stesso usa per un `$` letterale: la despia lui prima di passarla al container. Dopo aver aggiornato `.env`, verifica con:
+> ```bash
+> docker compose up -d --build   # non basta un semplice restart: il container va ricreato per leggere l'.env nuovo
+> docker compose exec backend env | grep APP_PASSWORD_HASH
+> ```
+> e controlla che l'hash stampato abbia i `$` singoli (non raddoppiati) e sia identico a quello generato dallo script.
+
 Una volta che l'app è raggiungibile, la password si può anche cambiare dalla UI (Impostazioni → Sicurezza, richiede quella attuale) senza dover più toccare `.env` o riavviare nulla — quel cambiamento disconnette anche automaticamente tutte le sessioni già aperte, non solo quella di chi la cambia.
 
 ## 5. Build e avvio con Docker Compose
