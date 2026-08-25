@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './layout/AppLayout'
 import { CalendarPage } from './pages/CalendarPage'
-import { FinancePage } from './pages/FinancePage'
 import { HomePage } from './pages/HomePage'
 import { InventoryPage } from './pages/InventoryPage'
 import { MenuPage } from './pages/MenuPage'
@@ -28,7 +27,6 @@ function App() {
             <Route path="allenamenti" element={<TrainingPage />} />
             <Route path="spesa" element={<ShoppingPage />} />
             <Route path="inventory" element={<InventoryPage />} />
-            <Route path="finanze" element={<FinancePage />} />
             <Route path="impostazioni" element={<SettingsPage />} />
           </Route>
         </Routes>

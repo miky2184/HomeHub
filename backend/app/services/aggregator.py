@@ -2,14 +2,12 @@
 tabelle manuali (menu scolastico, allenamenti) dal Postgres dedicato."""
 
 import asyncio
-import logging
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.adapters.bring import BringAdapter
-from app.adapters.finance import FinanceAdapter, parse_upcoming_expenses
 from app.adapters.garmin import GarminAdapter
 from app.adapters.google_calendar import GoogleCalendarAdapter
 from app.adapters.santo_del_giorno import fetch_saint_of_day
@@ -25,7 +23,6 @@ from app.core.config import get_settings
 from app.db.dieta_models import GIORNI_SETTIMANA_IT, allenamento_table, menu_settimanale_table
 from app.db.home_inventory_models import containers_table, items_table
 from app.db.models import (
-    AppConfig,
     SchoolMenuCycleAnchor,
     SchoolMenuTemplateEntry,
     SnackTemplateEntry,
@@ -34,7 +31,6 @@ from app.db.models import (
 )
 from app.schemas.common import (
     DailyForecast,
-    FinanceSummary,
     HomeMeals,
     HomeSummary,
     HourlyForecast,
@@ -50,7 +46,6 @@ from app.services import cache
 from app.services.quotes import quote_of_day
 
 settings = get_settings()
-logger = logging.getLogger(__name__)
 
 # Dopo quest'ora, Home mostra il menu/le merende di domani invece che di
 # oggi (comodo la sera, per sapere cosa preparare al mattino).
@@ -59,9 +54,6 @@ MENU_CUTOFF_HOUR = 20
 calendar_adapter = GoogleCalendarAdapter()
 bring_adapter = BringAdapter()
 garmin_adapter = GarminAdapter()
-finance_adapter = FinanceAdapter()
-
-GUEST_MODE_CONFIG_KEY = "guest_mode"
 
 # Soglia per gli alert di scadenza in Home: solo scaduti o in scadenza entro
 # questi giorni (stessa soglia "warning" del frontend di home_inventory_web,
@@ -154,55 +146,6 @@ def get_todo_summary(db: Session) -> TodoSummary:
     pending = [i for i in db.scalars(select(TodoItem)).all() if not i.done]
     top = sort_todos(pending)[:3]
     return TodoSummary(pending_count=len(pending), top=[todo_item_out(i) for i in top])
-
-
-def get_guest_mode(db: Session) -> bool:
-    """Modalità ospiti: quando attiva, nasconde l'intera sezione Finanze
-    (tab + card Home) — non solo lato UI, il backend smette proprio di
-    calcolare/restituire quei dati (vedi build_home_summary e
-    api/routes/finance.py). Persistita in app_config, non in .env, perché
-    va accesa/spenta al volo dall'utente, non in fase di deploy."""
-    row = db.get(AppConfig, GUEST_MODE_CONFIG_KEY)
-    return row is not None and row.value == "true"
-
-
-def set_guest_mode(db: Session, enabled: bool) -> bool:
-    row = db.get(AppConfig, GUEST_MODE_CONFIG_KEY)
-    value = "true" if enabled else "false"
-    if row:
-        row.value = value
-    else:
-        db.add(AppConfig(key=GUEST_MODE_CONFIG_KEY, value=value))
-    db.commit()
-    return enabled
-
-
-async def get_finance_summary(db: Session) -> FinanceSummary | None:
-    """None se la modalità ospiti è attiva o l'integrazione non è
-    configurata: in quel caso la Home/il tab Finanze non mostrano proprio
-    la sezione, non solo dati vuoti. Sola lettura via API della web app
-    finanze (mai una query diretta su home.finance: /dare_avere e
-    /budget-forecast-all hanno già tutta la logica di business — vedi
-    app/adapters/finance.py). Ogni fetch è isolato: se una delle due fonti
-    fallisce, l'altra continua a funzionare invece di rompere l'intera
-    card (widget decorativo, non deve mai rompere la Home)."""
-    if get_guest_mode(db) or not finance_adapter.is_configured:
-        return None
-    try:
-        raw = await cache.get_or_set("finance_budget", finance_adapter.cache_ttl, finance_adapter.fetch)
-        categories = finance_adapter.normalize(raw)
-    except Exception:
-        logger.exception("Finanze: fetch/normalize budget-forecast-all fallito")
-        categories = []
-    try:
-        dare_avere_raw = await cache.get_or_set(
-            "finance_dare_avere", finance_adapter.cache_ttl, finance_adapter.fetch_dare_avere
-        )
-        upcoming_expenses = parse_upcoming_expenses(dare_avere_raw)
-    except Exception:
-        logger.exception("Finanze: fetch/parse dare_avere fallito")
-        upcoming_expenses = []
-    return FinanceSummary(categories=categories, upcoming_expenses=upcoming_expenses)
 
 
 # Chiavi pasto nel jsonb di dieta.menu_settimanale → campo HomeMeals
@@ -488,8 +431,6 @@ async def build_home_summary(db: Session) -> HomeSummary:
     next_training = get_next_training(db, today)
     saint_of_day = await get_saint_of_day(today)
     weather = await get_weather()
-    guest_mode = get_guest_mode(db)
-    finance = await get_finance_summary(db)
 
     return HomeSummary(
         now=now,
@@ -503,6 +444,4 @@ async def build_home_summary(db: Session) -> HomeSummary:
         shopping_total_count=len(shopping_items),
         inventory_alerts=inventory_alerts,
         todos=todos,
-        finance=finance,
-        guest_mode=guest_mode,
     )

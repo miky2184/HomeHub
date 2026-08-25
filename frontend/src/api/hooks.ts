@@ -3,7 +3,6 @@ import { api } from './client'
 import type {
   CalendarEvent,
   CalendarInfo,
-  FinanceSummary,
   HomeSummary,
   InventoryAlert,
   MenuSettings,
@@ -270,35 +269,3 @@ export function useDeleteTodo() {
   })
 }
 
-// --- Finanze (sola lettura, mai importi assoluti — vedi api/types.ts) ---
-
-export function useFinanceSummary() {
-  return useQuery({
-    queryKey: ['finance-summary'],
-    queryFn: () => api.get<FinanceSummary | null>('/api/finance/summary'),
-    refetchInterval: 15 * 60_000,
-  })
-}
-
-// --- Modalità ospiti (nasconde la sezione Finanze al volo) ---
-
-export function useGuestMode() {
-  return useQuery({
-    queryKey: ['guest-mode'],
-    queryFn: () => api.get<{ enabled: boolean }>('/api/settings/guest-mode'),
-    staleTime: 10_000,
-    refetchInterval: 30_000, // l'icona rapida nel rail deve accorgersi in fretta di un toggle da un'altra vista
-  })
-}
-
-export function useSetGuestMode() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (enabled: boolean) => api.put<{ enabled: boolean }>('/api/settings/guest-mode', { enabled }),
-    onSuccess: (result) => {
-      queryClient.setQueryData(['guest-mode'], result)
-      queryClient.invalidateQueries({ queryKey: ['home-summary'] })
-      queryClient.invalidateQueries({ queryKey: ['finance-summary'] })
-    },
-  })
-}

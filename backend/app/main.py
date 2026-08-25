@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError as GoogleHttpError
 
-from app.api.routes import calendar, finance, home, inventory, menu, settings as settings_route, shopping, todo, training
+from app.api.routes import calendar, home, inventory, menu, shopping, todo, training
 from app.core.config import get_settings
 from app.services.aggregator import bring_adapter
 
@@ -66,8 +66,6 @@ app.include_router(training.router)
 app.include_router(shopping.router)
 app.include_router(inventory.router)
 app.include_router(todo.router)
-app.include_router(finance.router)
-app.include_router(settings_route.router)
 
 
 @app.get("/api/health")

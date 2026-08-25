@@ -1,9 +1,8 @@
-import { CalendarDays, CheckSquare, ChefHat, Dumbbell, House, ShoppingBasket, Wallet } from 'lucide-react'
+import { CalendarDays, CheckSquare, ChefHat, Dumbbell, House, ShoppingBasket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { HomeMeals } from '../api/types'
 import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem } from '../api/hooks'
 import { Card } from '../components/Card'
-import { FinanceSummaryContent } from '../components/FinanceSummaryContent'
 import { MealList } from '../components/MealList'
 import { WeatherCard } from '../components/WeatherCard'
 import { getGreeting } from '../config'
@@ -233,18 +232,6 @@ export function HomePage() {
               ✓
             </button>
           </div>
-        </Card>
-      )}
-
-      {data.finance && (
-        <Card
-          label="Finanze · andamento budget"
-          icon={Wallet}
-          category="finanze"
-          footerLabel="Vedi dettagli"
-          onFooterClick={() => navigate('/finanze')}
-        >
-          <FinanceSummaryContent finance={data.finance} maxCategories={3} maxUpcoming={2} />
         </Card>
       )}
 

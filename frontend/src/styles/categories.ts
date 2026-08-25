@@ -9,7 +9,6 @@ export type Category =
   | 'attivita'
   | 'spesa'
   | 'casa'
-  | 'finanze'
   | 'evidenza'
   | 'todo'
 
@@ -21,7 +20,6 @@ export const CATEGORY_COLORS: Record<Category, { bg: string; fg: string }> = {
   attivita: { bg: 'var(--cat-attivita-bg)', fg: 'var(--cat-attivita-fg)' },
   spesa: { bg: 'var(--cat-spesa-bg)', fg: 'var(--cat-spesa-fg)' },
   casa: { bg: 'var(--cat-casa-bg)', fg: 'var(--cat-casa-fg)' },
-  finanze: { bg: 'var(--cat-finanze-bg)', fg: 'var(--cat-finanze-fg)' },
   evidenza: { bg: 'var(--cat-evidenza-bg)', fg: 'var(--cat-evidenza-fg)' },
   todo: { bg: 'var(--cat-todo-bg)', fg: 'var(--cat-todo-fg)' },
 }

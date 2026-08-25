@@ -53,16 +53,6 @@ class Settings(BaseSettings):
     weather_latitude: float | None = None
     weather_longitude: float | None = None
 
-    # --- Finanze (python-finanze-api, altra web app dell'utente): login
-    # utente/password (stesso account personale usato sulla web app, non un
-    # account dedicato — scelta esplicita, vedi ARCHITECTURE.md §5) invece
-    # di una semplice API key, perché quell'app usa JWT via /login. HomeHub
-    # NON deve mai esporre importi assoluti al frontend: solo percentuali/
-    # stati derivati — vedi app/adapters/finance.py.
-    finance_app_base_url: str = ""
-    finance_username: str = ""
-    finance_password: str = ""
-
     # --- Cache/polling (secondi) ---
     cache_ttl_calendar: int = 300
     cache_ttl_bring: int = 120

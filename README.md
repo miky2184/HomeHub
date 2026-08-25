@@ -1,6 +1,6 @@
 # HomeHub
 
-Home Hub — una dashboard personale per la famiglia che aggrega calendario, liste della spesa, menu, allenamenti, finanze, home inventory e API custom in un unico display verticale.
+Home Hub — una dashboard personale per la famiglia che aggrega calendario, liste della spesa, menu, allenamenti, todo, home inventory e API custom in un unico display verticale.
 
 Il design completo (architettura, wireframe, decisioni) è in [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -9,7 +9,8 @@ Il design completo (architettura, wireframe, decisioni) è in [ARCHITECTURE.md](
 ```
 frontend/   React + Vite + TypeScript — la dashboard (rail laterale + Home + tab di dettaglio)
 backend/    Python + FastAPI — backend aggregatore (BFF) verso Google Calendar, Bring!,
-            le web app esistenti (finanze/menu/inventory) e le tabelle manuali su Postgres
+            le web app esistenti (dieta/home inventory, lette direttamente da Postgres)
+            e le tabelle manuali (menu scuola, todo) sullo stesso Postgres
 docker-compose.yml   deploy dei due servizi sul NUC (Postgres è un'istanza esterna già esistente)
 ```
 

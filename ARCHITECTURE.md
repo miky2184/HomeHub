@@ -113,7 +113,7 @@ Layout pensato per la risoluzione reale **1080×1920** (verticale):
 
 Note di design:
 
-- **Rail** (sinistra, ~52–64px): icone Home, Calendario, Menu, Allenamenti, Spesa, Home Inventory, Finanze. Tab attivo evidenziato con sfondo colorato (accent), gli altri neutri. Target di click generosi (min. ~48px) pensati per puntatore trackpad, non per touch di precisione.
+- **Rail** (sinistra, ~52–64px): icone Home, Calendario, Todo, Menu, Allenamenti, Spesa, Home Inventory, Impostazioni. Tab attivo evidenziato con sfondo colorato (accent), gli altri neutri. Target di click generosi (min. ~48px) pensati per puntatore trackpad, non per touch di precisione.
 - **Status strip** in alto: ora (grande, sempre visibile, fa anche da "screensaver" leggero quando non ci sono notifiche urgenti), data, meteo compatto.
 - **Card Home = riepilogo, non l'elenco completo**: ogni card mostra solo i primi 2-3 elementi rilevanti; cliccando sulla card (o sull'icona del tab corrispondente nel rail) si apre la vista di dettaglio completa in quel tab.
 - **Ordine delle card** riflette priorità d'uso in cucina: agenda di oggi → menu del giorno → prossimo allenamento → spesa → alert inventory. Facilmente riordinabile in seguito senza cambiare struttura.
@@ -139,8 +139,9 @@ Note di design:
 | **Allenamenti** | Piano settimanale (sola lettura) + dettaglio dell'allenamento svolto in una modale | ✅ Piano da Garmin Connect (API non ufficiale, `get_scheduled_workouts`); allenamenti svolti da `dieta.allenamento` (altra web app dell'utente, già sincronizzata da Garmin con dati più ricchi: FC, passo, TSS, dislivello...) — stesso Postgres di homehub, schema diverso |
 | **Spesa (Bring!)** | Lista della spesa condivisa, con possibilità di spuntare/aggiungere articoli | Bring! API (non ufficiale, via backend) |
 | **Home Inventory** | ✅ **Sola lettura**: oggetti scaduti o in scadenza entro 7gg (stessa soglia "warning" della web app dedicata), con contenitore associato. Gestione (creare/modificare/consumare/quantità) resta nella web app `home_inventory_web`. ✅ Un pulsante "Aggiungi a Bring!" per ogni alert manda l'articolo (nome + quantità/unità come specifica) sulla lista della spesa in un click | Lettura diretta dello schema Postgres `home_inventory` (stesso Postgres di homehub, altra web app dell'utente — niente API REST, come per `dieta.allenamento`) — vedi `backend/app/db/home_inventory_models.py`. Scrittura verso Bring! riusa `/api/shopping` (stesso adapter della tab Spesa) |
-| **Finanze** | ✅ **Privacy-first** (monitor in cucina, visibile anche dagli ospiti): MAI saldi o importi in euro, solo andamento budget del mese per categoria come percentuale (proiezione a fine mese + colore in base ad alert_level) e promemoria "prossime scadenze" (beneficiario + periodo, es. "Settembre 2026", mai l'importo). **Modalità ospiti**: un toggle (Impostazioni o icona rapida nel rail) nasconde del tutto tab+card, lato backend non solo UI | Tutto via API REST della web app finanze (`python-finanze-api`), **nessuna query diretta sul suo schema**: percentuali da `/budget-forecast-all` (già con la logica di calcolo budget/proiezione — HomeHub aggrega solo per categoria e scarta subito gli importi assoluti), scadenze da `/dare_avere` (aggregato per beneficiario sui conti di famiglia — un netto negativo sommando i conti è un costo reale, un netto ≥0 è un'entrata o un giroconto interno, escluso) — vedi `backend/app/adapters/finance.py` |
 | **Todo** | ✅ Todo list condivisa di famiglia (no multi-utente/login): titolo, priorità (alta/media/bassa), scadenza opzionale, "per chi" (etichetta libera, non un vero assegnatario). CRUD completo nel tab; in Home una card mostra il conteggio degli aperti + i primi 3 per priorità/scadenza | Tabella propria `homehub.todo_item` — vedi `backend/app/db/models.py:TodoItem` e `backend/app/api/routes/todo.py` |
+
+> **Finanze**: implementata (percentuali di budget + promemoria scadenze, mai importi — vedi storico Git) e poi **rimossa deliberatamente**: non è un'informazione da colpo d'occhio quotidiano come le altre card, non giustificava la complessità che si portava dietro (credenziali JWT verso `python-finanze-api`, modalità ospiti dedicata solo a nasconderla). Nessun residuo nel codice: niente tab, niente adapter, niente `guest_mode`.
 
 ## 6. Azioni supportate dalla dashboard (non solo lettura)
 
@@ -153,7 +154,6 @@ La dashboard deve poter scrivere, non solo mostrare. Elenco (non esaustivo) dell
 | Allenamenti | Nessuna (tab di sola lettura): il piano si programma su Garmin Connect, non in HomeHub — vedi §5. Click su un allenamento svolto apre il dettaglio in una modale |
 | Spesa (Bring!) | Spuntare articoli come presi, aggiungere nuovi articoli, rimuovere articoli |
 | Home Inventory | Nessuna scrittura sul suo DB (scelta esplicita): consumo/scarico/quantità restano nella web app `home_inventory_web` dedicata. ✅ Unica azione: "Aggiungi a Bring!" per un articolo in scadenza (scrive solo su Bring!, mai su home_inventory) |
-| Finanze | Nessuna azione di scrittura (sola lettura): l'unica "azione" è il toggle modalità ospiti, che vive concettualmente in Impostazioni |
 | Todo | CRUD completo: creare, modificare (titolo/priorità/scadenza/assegnatario), segnare come fatto, eliminare (con conferma) |
 
 Implicazioni di design:
@@ -168,8 +168,8 @@ Implicazioni di design:
 - Espone un'unica API REST coerente al frontend (uno schema dati "HomeHub", non gli schemi eterogenei delle fonti), sia in lettura che in scrittura.
 - Gestisce OAuth2 con Google Calendar (token storage + refresh automatico) e le chiamate di scrittura (creazione eventi).
 - Gestisce sessione/credenziali Bring! (libreria non ufficiale, es. `bring-shopping` per Node o `python-bring-api` per Python), sia per leggere la lista sia per modificarla.
-- Fa da client verso le API REST della web app finanze (unica rimasta non ancora integrata), con retry/timeout e mapping verso lo schema unificato. Menu di casa e home inventory fanno eccezione: essendo sullo stesso Postgres, si leggono direttamente i loro schemi (`dieta.menu_settimanale`, `home_inventory`), niente API REST di mezzo.
-- Cache per ridurre il numero di chiamate esterne (polling schedulato, es. calendario ogni 5', Bring! ogni 2', menu/finanze ogni 15'); le letture dirette da Postgres (dieta, home_inventory) non serve cacciarle, sono query locali, non chiamate di rete.
+- Menu di casa e home inventory si leggono direttamente dai rispettivi schemi Postgres (`dieta.menu_settimanale`, `home_inventory`), niente API REST di mezzo — nessuna web app esterna resta da integrare via API REST generica (finanze è stata valutata, implementata e poi rimossa deliberatamente, vedi §5).
+- Cache per ridurre il numero di chiamate esterne (polling schedulato, es. calendario ogni 5', Bring! ogni 2', menu ogni 15'); le letture dirette da Postgres (dieta, home_inventory) non serve cacciarle, sono query locali, non chiamate di rete.
 - Storage per i dati "manuali" (menu scolastico, piano allenamenti) su **PostgreSQL** (istanza già esistente — HomeHub userà un proprio schema dedicato, per non mischiarsi con le tabelle delle altre app).
 - Config/secret management: file `.env` locale sul NUC (credenziali Postgres, OAuth Google, credenziali Bring!), mai nel repo.
 
@@ -208,8 +208,7 @@ Ogni integrazione esterna è isolata in un modulo/adapter con la stessa interfac
 
 ## 9. Punti operativi — risolti
 
-1. **Auth verso l'API della web app finanze** (unica rimasta, non ancora integrata): è un'API di login "basic", quindi siamo liberi di decidere l'approccio. Scelta consigliata: un **API key statica per-servizio**, generata una tantum e messa in `.env` del backend HomeHub — nessun bisogno di gestire refresh/scadenza come per un vero OAuth. Se l'app espone solo login utente/password, il backend HomeHub farà da "utente tecnico" (credenziali dedicate, non quelle personali) e gestirà lui la sessione/cookie verso quell'app, tenendolo comunque nascosto al frontend. Menu di casa e home inventory non servono: ✅ lettura diretta dei rispettivi schemi Postgres, nessuna API/credenziale di mezzo.
-2. **Raggiungibilità Postgres**: confermato che l'istanza è raggiungibile sulla **stessa LAN** del NUC → connection string diretta (`host:porta` della LAN) in `.env`, nessun tunnel/VPN necessario. Consigliato comunque creare un **utente Postgres dedicato** con permessi limitati al solo schema `homehub` (niente accesso alle tabelle delle altre app), per isolamento.
+1. **Raggiungibilità Postgres**: confermato che l'istanza è raggiungibile sulla **stessa LAN** del NUC → connection string diretta (`host:porta` della LAN) in `.env`, nessun tunnel/VPN necessario. Consigliato comunque creare un **utente Postgres dedicato** con permessi limitati al solo schema `homehub` (niente accesso alle tabelle delle altre app), per isolamento.
 
 ## 10. Roadmap proposta (fasi)
 
@@ -218,7 +217,7 @@ Ogni integrazione esterna è isolata in un modulo/adapter con la stessa interfac
 - **Fase 2 — Menu & Allenamenti**: ✅ fatto. Tab Menu con template scuola/merende a rotazione (data entry in Impostazioni) + ✅ tutti i pasti di casa (colazione/spuntini/pranzo/cena) letti da `dieta.menu_settimanale`; tab Allenamenti da Garmin Connect + `dieta.allenamento`.
 - **Fase 3 — Spesa & Inventory**: ✅ fatto. Bring! (lettura + spunta/aggiunta/rimozione articoli, vedi `backend/app/adapters/bring.py`); home inventory in sola lettura, alert oggetti scaduti/in scadenza entro 7gg letti direttamente dallo schema Postgres `home_inventory` (vedi `backend/app/db/home_inventory_models.py`), niente azioni di scrittura (gestione lasciata alla web app dedicata).
 - **Fase 3.1 — Todo list**: ✅ fatto. Todo list condivisa di famiglia con priorità/scadenza/assegnatario libero, CRUD completo nel tab dedicato, card riepilogo in Home — vedi `backend/app/api/routes/todo.py` e `frontend/src/pages/TodoPage.tsx`.
-- **Fase 4 — Finanze & rifiniture azioni**: ✅ fatto. Tab Finanze privacy-first (solo percentuali/stati, mai importi) + modalità ospiti, vedi `backend/app/adapters/finance.py`; resta da fare la revisione UX generale delle azioni di scrittura (conferme, feedback visivo, gestione errori di rete verso le fonti esterne).
+- **Fase 4 — Finanze & rifiniture azioni**: tab Finanze implementata (percentuali di budget + promemoria scadenze, mai importi) e poi **rimossa deliberatamente** — non è un'informazione da colpo d'occhio quotidiano, non giustificava la complessità (credenziali JWT, modalità ospiti dedicata). Resta da fare la revisione UX generale delle azioni di scrittura (conferme, feedback visivo, gestione errori di rete verso le fonti esterne).
 - **Fase 5 — Polish & go-live**: idle/attract mode, gestione errori/offline dei singoli adapter, dismissione MagicMirror, deploy definitivo systemd+Docker sul NUC.
 - **Fase 6 — Estensioni future**: sync automatico allenamenti da Garmin Connect ✅ *(fatto, vedi sopra)*, SSE per aggiornamenti push multi-dispositivo, altri moduli.
 
