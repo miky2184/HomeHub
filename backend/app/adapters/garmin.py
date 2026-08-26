@@ -33,6 +33,7 @@ Finché GARMIN_EMAIL/GARMIN_PASSWORD non sono configurate (o il setup non è
 stato fatto), l'adapter è semplicemente "non configurato" e non fa nulla.
 """
 
+import logging
 import threading
 from datetime import date
 from pathlib import Path
@@ -44,6 +45,7 @@ from app.core.config import get_settings
 from app.core.runtime_settings import effective_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 TOKENSTORE_DIR = Path(__file__).resolve().parent.parent.parent / ".garmin_tokens"
 
@@ -103,6 +105,11 @@ class GarminAdapter(SourceAdapter):
         for item in calendar_month.get("calendarItems", []):
             if item.get("itemType") != "workout" or not item.get("title"):
                 continue
+            # TEMPORANEO: per capire se una data "sbagliata" (es. un
+            # allenamento di giovedì che appare sotto venerdì in HomeHub)
+            # viene già così da Garmin o nasce nel nostro codice — vedi
+            # conversazione del 26/08/2026. Da togliere una volta chiarito.
+            logger.warning("[garmin-debug] item grezzo: date=%r title=%r", item.get("date"), item.get("title"))
             titles.setdefault(item["date"], []).append(item["title"].strip())
             sport_types.setdefault(item["date"], item.get("sportTypeKey"))
         return {
