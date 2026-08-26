@@ -239,7 +239,11 @@ export function useAddShoppingItem() {
 export function useToggleShoppingItem() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (itemId: string) => api.patch<ShoppingItem[]>(`/api/shopping/${itemId}/toggle`),
+    // L'id di un articolo Bring! è il suo nome (non un id opaco, vedi
+    // backend/app/adapters/bring.py) — encodeURIComponent è necessario, non
+    // solo prudente: un nome con "%" (es. "Yogurt 0%") altrimenti produce un
+    // path malformato ("%" non seguito da due cifre esadecimali), rotta reale.
+    mutationFn: (itemId: string) => api.patch<ShoppingItem[]>(`/api/shopping/${encodeURIComponent(itemId)}/toggle`),
     onSuccess: (items) => {
       queryClient.setQueryData(['shopping-list'], items)
       queryClient.invalidateQueries({ queryKey: ['home-summary'] })
@@ -250,7 +254,7 @@ export function useToggleShoppingItem() {
 export function useRemoveShoppingItem() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (itemId: string) => api.delete<ShoppingItem[]>(`/api/shopping/${itemId}`),
+    mutationFn: (itemId: string) => api.delete<ShoppingItem[]>(`/api/shopping/${encodeURIComponent(itemId)}`),
     onSuccess: (items) => {
       queryClient.setQueryData(['shopping-list'], items)
       queryClient.invalidateQueries({ queryKey: ['home-summary'] })
