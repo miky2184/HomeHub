@@ -2,7 +2,7 @@
 tabelle manuali (menu scolastico, allenamenti) dal Postgres dedicato."""
 
 import asyncio
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.adapters.bring import BringAdapter
 from app.adapters.garmin import GarminAdapter
 from app.adapters.google_calendar import GoogleCalendarAdapter
+from app.adapters.poste_italiane import PosteItalianeAdapter, PosteItalianeError, PosteTrackingResult
 from app.adapters.santo_del_giorno import fetch_saint_of_day
 from app.adapters.weather import (
     condition_label,
@@ -27,6 +28,7 @@ from app.db.models import (
     Chore,
     SchoolMenuCycleAnchor,
     SchoolMenuTemplateEntry,
+    Shipment,
     SnackTemplateEntry,
     TodoItem,
     TrainingSession as TrainingSessionModel,
@@ -42,6 +44,9 @@ from app.schemas.common import (
     InventoryContainer,
     InventoryItem,
     MenuDay,
+    ShipmentEvent,
+    ShipmentOut,
+    ShipmentSummary,
     TodoItemOut,
     TodoSummary,
     TrainingActivityDetail,
@@ -60,6 +65,14 @@ MENU_CUTOFF_HOUR = 20
 calendar_adapter = GoogleCalendarAdapter()
 bring_adapter = BringAdapter()
 garmin_adapter = GarminAdapter()
+poste_italiane_adapter = PosteItalianeAdapter()
+
+# Sotto questa età, last_polled_at è considerato ancora buono e non si
+# richiama Poste Italiane: stesso principio "poll on read con TTL" del resto
+# dell'app (vedi services/cache.py), ma persistito sulla riga invece che in
+# una cache in-memory, perché lo stato va mostrato anche subito dopo un
+# riavvio del backend, prima di un eventuale refresh.
+SHIPMENT_STALE_AFTER_MINUTES = 30
 
 # Soglia per gli alert di scadenza in Home: solo scaduti o in scadenza entro
 # questi giorni (stessa soglia "warning" del frontend di home_inventory_web,
@@ -274,6 +287,105 @@ def get_chore_summary(db: Session, today: date) -> ChoreSummary:
     due = [c for c in items if c.next_due_date <= today]
     top = sort_chores(items)[:3]
     return ChoreSummary(due_count=len(due), top=top)
+
+
+def shipment_item_out(shipment: Shipment) -> ShipmentOut:
+    return ShipmentOut(
+        id=shipment.id,
+        tracking_number=shipment.tracking_number,
+        carrier=shipment.carrier,
+        label=shipment.label,
+        status=shipment.status,
+        delivered=shipment.delivered,
+        last_event_at=shipment.last_event_at,
+        last_event_description=shipment.last_event_description,
+        last_event_location=shipment.last_event_location,
+        events=[ShipmentEvent(**e) for e in (shipment.events or [])],
+        last_polled_at=shipment.last_polled_at,
+        last_poll_error=shipment.last_poll_error,
+        created_at=shipment.created_at,
+    )
+
+
+def sort_shipments(items: list[Shipment]) -> list[Shipment]:
+    """Non consegnate prima (più recente ultimo evento prima, mai
+    aggiornate in fondo), poi le consegnate — stesso ordine ovunque (tab
+    Spedizioni e top in Home)."""
+    return sorted(
+        items,
+        key=lambda s: (
+            s.delivered,
+            -(s.last_event_at.timestamp() if s.last_event_at else 0),
+            -s.created_at.timestamp(),
+        ),
+    )
+
+
+def is_shipment_stale(shipment: Shipment) -> bool:
+    if shipment.last_polled_at is None:
+        return True
+    return datetime.now(timezone.utc) - shipment.last_polled_at > timedelta(minutes=SHIPMENT_STALE_AFTER_MINUTES)
+
+
+def _apply_tracking_result(shipment: Shipment, result: PosteTrackingResult | PosteItalianeError) -> None:
+    shipment.last_polled_at = datetime.now(timezone.utc)
+    if isinstance(result, PosteItalianeError):
+        shipment.last_poll_error = str(result)
+        return
+    shipment.last_poll_error = None
+    shipment.status = result.status
+    shipment.delivered = result.delivered
+    shipment.events = [
+        {"at": e.at.isoformat(), "description": e.description, "location": e.location} for e in result.events
+    ]
+    if result.events:
+        last = result.events[-1]
+        shipment.last_event_at = last.at
+        shipment.last_event_description = last.description
+        shipment.last_event_location = last.location
+
+
+async def refresh_shipment(db: Session, shipment: Shipment) -> Shipment:
+    """Refresh forzato di una singola spedizione (usato da POST
+    /api/shipments/{id}/refresh e dopo la creazione). Non solleva mai: un
+    fallimento del corriere esterno finisce in last_poll_error, non in
+    un'eccezione verso il chiamante — vedi docstring di Shipment."""
+    if shipment.carrier != "poste_italiane":
+        return shipment
+    try:
+        results = await poste_italiane_adapter.track([shipment.tracking_number])
+        result = results.get(shipment.tracking_number, PosteItalianeError("Nessuna risposta"))
+    except PosteItalianeError as exc:
+        result = exc
+    _apply_tracking_result(shipment, result)
+    db.commit()
+    db.refresh(shipment)
+    return shipment
+
+
+async def refresh_stale_shipments(db: Session, shipments: list[Shipment]) -> None:
+    """Chiamata da GET /api/shipments: un'unica chiamata batch a Poste per
+    tutte le spedizioni Poste non consegnate e stantie (vedi
+    is_shipment_stale), invece di una chiamata per spedizione."""
+    stale = [s for s in shipments if s.carrier == "poste_italiane" and not s.delivered and is_shipment_stale(s)]
+    if not stale:
+        return
+    try:
+        results = await poste_italiane_adapter.track([s.tracking_number for s in stale])
+    except PosteItalianeError as exc:
+        for s in stale:
+            _apply_tracking_result(s, exc)
+        db.commit()
+        return
+    for s in stale:
+        _apply_tracking_result(s, results.get(s.tracking_number, PosteItalianeError("Nessuna risposta")))
+    db.commit()
+
+
+def get_shipment_summary(db: Session) -> ShipmentSummary:
+    items = [shipment_item_out(s) for s in sort_shipments(db.scalars(select(Shipment)).all())]
+    in_transit = [s for s in items if not s.delivered]
+    return ShipmentSummary(in_transit_count=len(in_transit), top=in_transit[:3])
 
 
 # Chiavi pasto nel jsonb di dieta.menu_settimanale → campo HomeMeals
@@ -546,6 +658,9 @@ async def build_home_summary(db: Session) -> HomeSummary:
     inventory_alerts = get_inventory_alerts(db, today)
     todos = get_todo_summary(db)
     chores = get_chore_summary(db, today)
+    all_shipments = db.scalars(select(Shipment)).all()
+    await refresh_stale_shipments(db, all_shipments)
+    shipments = get_shipment_summary(db)
 
     menu_day = await build_menu_day(db, effective_menu_date(now))
     today_menu = (
@@ -579,4 +694,5 @@ async def build_home_summary(db: Session) -> HomeSummary:
         inventory_alerts=inventory_alerts,
         chores=chores,
         todos=todos,
+        shipments=shipments,
     )

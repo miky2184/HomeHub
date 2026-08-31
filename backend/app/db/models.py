@@ -4,7 +4,7 @@ vedi services/aggregator.py, ma la tabella resta come fallback)."""
 
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, CheckConstraint, Date, DateTime, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -115,6 +115,41 @@ class Chore(Base):
     last_done_date: Mapped[date | None] = mapped_column(Date, default=None)
     assignee: Mapped[str | None] = mapped_column(String(100), default=None)
     notes: Mapped[str | None] = mapped_column(Text, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Shipment(Base):
+    """Spedizione tracciata manualmente (numero + corriere), letta on-demand
+    dal corriere quando il tab Spedizioni/la card Home vengono aperti e
+    l'ultimo poll è più vecchio di STALE_AFTER_MINUTES (vedi
+    services/aggregator.refresh_shipment) — nessuno scheduler in background,
+    stesso principio "poll on read con TTL" già usato per meteo/Bring!/
+    Garmin (vedi services/cache.py), solo che qui il TTL è persistito sulla
+    riga (last_polled_at) invece che in cache in-memory, perché lo stato va
+    mostrato anche appena aperta la pagina, prima di un eventuale refresh.
+    Solo carrier="poste_italiane" ha tracking automatico oggi (vedi
+    adapters/poste_italiane.py); "altro" è un contenitore manuale senza
+    refresh, per corrieri non ancora supportati."""
+
+    __tablename__ = "shipment"
+    __table_args__ = (CheckConstraint("carrier in ('poste_italiane', 'altro')", name="ck_shipment_carrier"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tracking_number: Mapped[str] = mapped_column(String(64))
+    carrier: Mapped[str] = mapped_column(String(30), default="poste_italiane")
+    label: Mapped[str | None] = mapped_column(Text, default=None)  # nota libera, es. "Scarpe Sofia"
+    status: Mapped[str | None] = mapped_column(Text, default=None)  # ultimo "sintesiStato" grezzo del corriere
+    delivered: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    last_event_description: Mapped[str | None] = mapped_column(Text, default=None)
+    last_event_location: Mapped[str | None] = mapped_column(Text, default=None)
+    # Storico completo eventi: [{"at": iso, "description": ..., "location": ...}, ...]
+    events: Mapped[list | None] = mapped_column(JSON, default=None)
+    last_polled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    last_poll_error: Mapped[str | None] = mapped_column(Text, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

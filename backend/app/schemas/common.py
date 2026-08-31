@@ -287,6 +287,47 @@ class ChoreSummary(BaseModel):
     top: list[ChoreOut]  # prime 3 per urgenza (vedi sort_chores)
 
 
+class ShipmentEvent(BaseModel):
+    at: datetime
+    description: str
+    location: str | None = None
+
+
+class ShipmentOut(BaseModel):
+    id: int
+    tracking_number: str
+    carrier: Literal["poste_italiane", "altro"] = "poste_italiane"
+    label: str | None = None
+    status: str | None = None
+    delivered: bool = False
+    last_event_at: datetime | None = None
+    last_event_description: str | None = None
+    last_event_location: str | None = None
+    events: list[ShipmentEvent] = []
+    last_polled_at: datetime | None = None
+    last_poll_error: str | None = None
+    created_at: datetime
+
+
+class ShipmentCreate(BaseModel):
+    tracking_number: str
+    carrier: Literal["poste_italiane", "altro"] = "poste_italiane"
+    label: str | None = None
+
+
+class ShipmentUpdate(BaseModel):
+    """PATCH parziale, stesso pattern di TodoItemUpdate/ChoreUpdate."""
+
+    tracking_number: str | None = None
+    carrier: Literal["poste_italiane", "altro"] | None = None
+    label: str | None = None
+
+
+class ShipmentSummary(BaseModel):
+    in_transit_count: int
+    top: list[ShipmentOut]  # prime spedizioni non consegnate, per la card in Home
+
+
 class HomeSummary(BaseModel):
     now: datetime
     family_name: str = ""  # da Impostazioni, mostrato nel saluto in Home
@@ -301,6 +342,7 @@ class HomeSummary(BaseModel):
     inventory_alerts: list[InventoryAlert]
     chores: ChoreSummary
     todos: TodoSummary
+    shipments: ShipmentSummary
 
 
 class AppSettingsOut(BaseModel):

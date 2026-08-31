@@ -200,6 +200,45 @@ export interface ChoreSummary {
   top: Chore[]
 }
 
+// Spedizioni: tracking manuale (numero + corriere), stato letto on-demand
+// dal corriere quando il tab/la card Home vengono aperti (vedi
+// backend/app/services/aggregator.refresh_stale_shipments). Solo
+// carrier="poste_italiane" ha tracking automatico oggi.
+export type ShipmentCarrier = 'poste_italiane' | 'altro'
+
+export interface ShipmentEvent {
+  at: string
+  description: string
+  location: string | null
+}
+
+export interface Shipment {
+  id: number
+  tracking_number: string
+  carrier: ShipmentCarrier
+  label: string | null
+  status: string | null
+  delivered: boolean
+  last_event_at: string | null
+  last_event_description: string | null
+  last_event_location: string | null
+  events: ShipmentEvent[]
+  last_polled_at: string | null
+  last_poll_error: string | null
+  created_at: string
+}
+
+export interface ShipmentInput {
+  tracking_number: string
+  carrier: ShipmentCarrier
+  label: string | null
+}
+
+export interface ShipmentSummary {
+  in_transit_count: number
+  top: Shipment[]
+}
+
 export interface HomeSummary {
   now: string
   family_name: string
@@ -214,6 +253,7 @@ export interface HomeSummary {
   inventory_alerts: InventoryAlert[]
   chores: ChoreSummary
   todos: TodoSummary
+  shipments: ShipmentSummary
 }
 
 // Impostazioni: config effettiva (.env + override salvati da qui, vedi

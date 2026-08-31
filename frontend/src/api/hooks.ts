@@ -16,6 +16,8 @@ import type {
   MenuWeek,
   SchoolMenuCycleAnchor,
   SchoolMenuTemplateEntry,
+  Shipment,
+  ShipmentInput,
   ShoppingItem,
   SnackTemplateEntry,
   TodoItem,
@@ -378,6 +380,56 @@ export function useDeleteChore() {
   const invalidate = useInvalidateChores()
   return useMutation({
     mutationFn: (id: number) => api.delete<void>(`/api/chores/${id}`),
+    onSuccess: invalidate,
+  })
+}
+
+// --- Spedizioni (tracking pacchi, per ora solo Poste Italiane) ---
+
+export function useShipments() {
+  return useQuery({
+    queryKey: ['shipments'],
+    queryFn: () => api.get<Shipment[]>('/api/shipments'),
+  })
+}
+
+function useInvalidateShipments() {
+  const queryClient = useQueryClient()
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ['shipments'] })
+    queryClient.invalidateQueries({ queryKey: ['home-summary'] })
+  }
+}
+
+export function useCreateShipment() {
+  const invalidate = useInvalidateShipments()
+  return useMutation({
+    mutationFn: (payload: ShipmentInput) => api.post<Shipment>('/api/shipments', payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateShipment() {
+  const invalidate = useInvalidateShipments()
+  return useMutation({
+    mutationFn: ({ id, ...payload }: { id: number } & Partial<ShipmentInput>) =>
+      api.patch<Shipment>(`/api/shipments/${id}`, payload),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteShipment() {
+  const invalidate = useInvalidateShipments()
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/api/shipments/${id}`),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRefreshShipment() {
+  const invalidate = useInvalidateShipments()
+  return useMutation({
+    mutationFn: (id: number) => api.post<Shipment>(`/api/shipments/${id}/refresh`),
     onSuccess: invalidate,
   })
 }

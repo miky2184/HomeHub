@@ -8,6 +8,7 @@ import { HomePage } from './pages/HomePage'
 import { InventoryPage } from './pages/InventoryPage'
 import { MenuPage } from './pages/MenuPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { ShipmentsPage } from './pages/ShipmentsPage'
 import { ShoppingPage } from './pages/ShoppingPage'
 import { TodoPage } from './pages/TodoPage'
 import { TrainingPage } from './pages/TrainingPage'
@@ -30,6 +31,7 @@ function App() {
               <Route path="menu" element={<MenuPage />} />
               <Route path="allenamenti" element={<TrainingPage />} />
               <Route path="spesa" element={<ShoppingPage />} />
+              <Route path="spedizioni" element={<ShipmentsPage />} />
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="impostazioni" element={<SettingsPage />} />
             </Route>

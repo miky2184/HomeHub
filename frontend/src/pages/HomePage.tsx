@@ -1,4 +1,4 @@
-import { CalendarDays, CheckSquare, ChefHat, Check, Dumbbell, House, ShoppingBasket, Wrench } from 'lucide-react'
+import { CalendarDays, CheckSquare, ChefHat, Check, Dumbbell, House, Package, ShoppingBasket, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { HomeMeals } from '../api/types'
 import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem, useUpdateChore } from '../api/hooks'
@@ -10,6 +10,7 @@ import { useClock } from '../hooks/useClock'
 import { choreDueInfo } from '../lib/chores'
 import { inferEventIcon } from '../lib/eventIcon'
 import { currentWeekStart, dateFromWeek, relativeDayLabel, toDateKey } from '../lib/date'
+import { lastEventSummary, shipmentStatusInfo } from '../lib/shipments'
 import { dueDateInfo, PRIORITY_META } from '../lib/todo'
 import { CATEGORY_COLORS } from '../styles/categories'
 
@@ -322,6 +323,36 @@ export function HomePage() {
                 >
                   <Check size={16} />
                 </button>
+              </div>
+            )
+          })}
+        </Card>
+      )}
+
+      {data.shipments.in_transit_count > 0 && (
+        <Card
+          label={`Spedizioni in arrivo · ${data.shipments.in_transit_count}`}
+          icon={Package}
+          category="spedizioni"
+          footerLabel="Vedi tutte"
+          onFooterClick={() => navigate('/spedizioni')}
+        >
+          {data.shipments.top.map((shipment) => {
+            const status = shipmentStatusInfo(shipment)
+            const eventSummary = lastEventSummary(shipment)
+            return (
+              <div key={shipment.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600, flex: 1, minWidth: 0 }}>
+                    {shipment.label || shipment.tracking_number}
+                  </span>
+                  <span style={{ fontSize: 'var(--fs-label)', fontWeight: 700, color: status.color, flexShrink: 0 }}>
+                    {status.label}
+                  </span>
+                </div>
+                {eventSummary && (
+                  <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>{eventSummary}</p>
+                )}
               </div>
             )
           })}

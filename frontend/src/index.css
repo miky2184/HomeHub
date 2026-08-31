@@ -31,3 +31,13 @@ h1, h2, h3 {
   font-family: var(--font-heading);
   font-weight: 600;
 }
+
+/* Icona di refresh in corso (tab Spedizioni) */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
