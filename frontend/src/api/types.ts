@@ -234,6 +234,17 @@ export interface ShipmentInput {
   label: string | null
 }
 
+// Percorso indicativo (città/hub, non indirizzi — Poste non fornisce
+// indirizzi di mittente/destinatario nel tracciamento pubblico), geocodifica
+// best-effort di ogni "luogo" distinto nello storico eventi (vedi
+// backend/app/adapters/geocoding.py e services/aggregator.get_shipment_route).
+export interface ShipmentRoutePoint {
+  lat: number
+  lon: number
+  place: string
+  at: string
+}
+
 export interface ShipmentSummary {
   in_transit_count: number
   top: Shipment[]

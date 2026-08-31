@@ -4,8 +4,14 @@ from sqlalchemy.orm import Session
 
 from app.db.base import get_db
 from app.db.models import Shipment
-from app.schemas.common import ShipmentCreate, ShipmentOut, ShipmentUpdate
-from app.services.aggregator import refresh_shipment, refresh_stale_shipments, shipment_item_out, sort_shipments
+from app.schemas.common import ShipmentCreate, ShipmentOut, ShipmentRoutePoint, ShipmentUpdate
+from app.services.aggregator import (
+    get_shipment_route,
+    refresh_shipment,
+    refresh_stale_shipments,
+    shipment_item_out,
+    sort_shipments,
+)
 
 router = APIRouter(prefix="/api/shipments", tags=["shipments"])
 
@@ -58,6 +64,18 @@ def delete_shipment(shipment_id: int, db: Session = Depends(get_db)) -> None:
         raise HTTPException(status_code=404, detail="Spedizione non trovata")
     db.delete(item)
     db.commit()
+
+
+@router.get("/{shipment_id}/route", response_model=list[ShipmentRoutePoint])
+async def shipment_route(shipment_id: int, db: Session = Depends(get_db)) -> list[ShipmentRoutePoint]:
+    """Percorso indicativo (città/hub, non indirizzi — vedi
+    services/aggregator.get_shipment_route), geocodificato on-demand solo
+    quando il dettaglio di una spedizione viene aperto in UI, non ad ogni
+    lista: evita di bombardare Nominatim per spedizioni mai aperte."""
+    item = db.get(Shipment, shipment_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Spedizione non trovata")
+    return await get_shipment_route(item)
 
 
 @router.post("/{shipment_id}/refresh", response_model=ShipmentOut)

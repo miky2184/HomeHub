@@ -18,6 +18,7 @@ import type {
   SchoolMenuTemplateEntry,
   Shipment,
   ShipmentInput,
+  ShipmentRoutePoint,
   ShoppingItem,
   SnackTemplateEntry,
   TodoItem,
@@ -431,6 +432,17 @@ export function useRefreshShipment() {
   return useMutation({
     mutationFn: (id: number) => api.post<Shipment>(`/api/shipments/${id}/refresh`),
     onSuccess: invalidate,
+  })
+}
+
+// Geocodificato on-demand solo quando il dettaglio è aperto (enabled), non
+// per ogni riga della lista — vedi backend/app/api/routes/shipments.py.
+export function useShipmentRoute(id: number | null) {
+  return useQuery({
+    queryKey: ['shipment-route', id],
+    queryFn: () => api.get<ShipmentRoutePoint[]>(`/api/shipments/${id}/route`),
+    enabled: id !== null,
+    staleTime: 60 * 60_000, // il percorso già geocodificato non cambia da un minuto all'altro
   })
 }
 

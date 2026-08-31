@@ -4,6 +4,7 @@ import { useCreateShipment, useDeleteShipment, useRefreshShipment, useShipments,
 import type { Shipment, ShipmentInput } from '../api/types'
 import { Card } from '../components/Card'
 import { Modal } from '../components/Modal'
+import { ShipmentRouteMap } from '../components/ShipmentRouteMap'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { CARRIER_META, CARRIER_OPTIONS, formatEventDateTime, lastEventSummary, shipmentStatusInfo } from '../lib/shipments'
 import { buttonStyle, ghostButtonStyle, inputStyle } from '../styles/controls'
@@ -142,6 +143,15 @@ export function ShipmentsPage() {
             <p style={{ margin: '8px 0', fontSize: 'var(--fs-label)', color: 'var(--warning)' }}>
               Ultimo aggiornamento non riuscito: {viewing.last_poll_error}
             </p>
+          )}
+          {viewing.events.length > 0 && (
+            <>
+              <ShipmentRouteMap shipmentId={viewing.id} />
+              <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--text-muted)' }}>
+                Percorso indicativo per città/centro di smistamento: Poste non fornisce indirizzi esatti nel
+                tracciamento pubblico.
+              </p>
+            </>
           )}
           {viewing.events.length === 0 && (
             <p style={{ margin: '12px 0 0', color: 'var(--text-secondary)', fontSize: 'var(--fs-body)' }}>

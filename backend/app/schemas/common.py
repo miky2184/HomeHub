@@ -323,6 +323,18 @@ class ShipmentUpdate(BaseModel):
     label: str | None = None
 
 
+class ShipmentRoutePoint(BaseModel):
+    """Una tappa geolocalizzata del percorso (best-effort: Poste non
+    fornisce indirizzi, solo nomi di luogo/centro — vedi
+    adapters/geocoding.py). lat/lon approssimati a livello di città/hub,
+    non l'indirizzo esatto di mittente/destinatario."""
+
+    lat: float
+    lon: float
+    place: str
+    at: datetime
+
+
 class ShipmentSummary(BaseModel):
     in_transit_count: int
     top: list[ShipmentOut]  # prime spedizioni non consegnate, per la card in Home

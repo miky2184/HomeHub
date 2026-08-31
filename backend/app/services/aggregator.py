@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.adapters.bring import BringAdapter
 from app.adapters.garmin import GarminAdapter
+from app.adapters.geocoding import geocode_place
 from app.adapters.google_calendar import GoogleCalendarAdapter
 from app.adapters.poste_italiane import PosteItalianeAdapter, PosteItalianeError, PosteTrackingResult
 from app.adapters.santo_del_giorno import fetch_saint_of_day
@@ -46,6 +47,7 @@ from app.schemas.common import (
     MenuDay,
     ShipmentEvent,
     ShipmentOut,
+    ShipmentRoutePoint,
     ShipmentSummary,
     TodoItemOut,
     TodoSummary,
@@ -380,6 +382,31 @@ async def refresh_stale_shipments(db: Session, shipments: list[Shipment]) -> Non
     for s in stale:
         _apply_tracking_result(s, results.get(s.tracking_number, PosteItalianeError("Nessuna risposta")))
     db.commit()
+
+
+async def get_shipment_route(shipment: Shipment) -> list[ShipmentRoutePoint]:
+    """Percorso indicativo di una spedizione: geocodifica (Nominatim, vedi
+    adapters/geocoding.py) di ogni "luogo" distinto nello storico eventi, in
+    ordine cronologico. Best-effort: Poste non fornisce indirizzi di
+    mittente/destinatario (solo nomi di città/centro), quindi è una mappa a
+    livello di città/hub, non porta a porta — e un luogo non risolvibile
+    viene semplicemente saltato, non fa fallire il resto del percorso.
+    Ogni luogo è geocodificato al più una volta (cache di 30gg: non cambia,
+    stesso principio di weather_coords) e non ripetuto se identico alla
+    tappa precedente (una spedizione ferma nello stesso hub per più
+    aggiornamenti non deve impilare marker sovrapposti)."""
+    route: list[ShipmentRoutePoint] = []
+    last_place = None
+    for event in shipment.events or []:
+        place = event.get("location")
+        if not place or place == last_place:
+            continue
+        last_place = place
+        coords = await cache.get_or_set(f"geocode_{place}", 30 * 24 * 3600, lambda p=place: geocode_place(p))
+        if coords is None:
+            continue
+        route.append(ShipmentRoutePoint(lat=coords[0], lon=coords[1], place=place, at=event["at"]))
+    return route
 
 
 def get_shipment_summary(db: Session) -> ShipmentSummary:
