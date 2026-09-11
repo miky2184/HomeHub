@@ -141,8 +141,21 @@ def get_inventory_by_container(db: Session) -> list[InventoryContainer]:
     in Casa, per sostituire il foglio di carta sul frigo (cassetti del
     freezer, freezer del terrazzo, ecc.). Include anche i contenitori
     senza articoli (utile sapere che un cassetto è vuoto) e gli articoli
-    senza contenitore assegnato, in un gruppo "Senza contenitore"."""
-    containers = db.execute(select(containers_table.c.id, containers_table.c.name).order_by(containers_table.c.name)).all()
+    senza contenitore assegnato, in un gruppo "Senza contenitore".
+
+    Gerarchia a 2 livelli (parent_id, aggiunta in home_inventory_web — es.
+    "Freezer" master di "Freezer - Cassetto 1/2/3"): un master mostra i
+    propri oggetti + quelli di tutti i suoi figli in un'unica lista, ciascun
+    oggetto del figlio taggato con container_name (il figlio di
+    provenienza) — stesso comportamento di home_inventory_web
+    (openContainer/currentContainerIsAggregate in static/js/app.js). I figli
+    restano comunque selezionabili singolarmente come voci proprie, con i
+    soli propri oggetti."""
+    containers = db.execute(
+        select(containers_table.c.id, containers_table.c.name, containers_table.c.parent_id).order_by(
+            containers_table.c.name
+        )
+    ).all()
     items = db.execute(
         select(
             items_table.c.id,
@@ -170,9 +183,27 @@ def get_inventory_by_container(db: Session) -> list[InventoryContainer]:
             )
         )
 
-    result = [
-        InventoryContainer(id=c.id, name=c.name, items=items_by_container.get(c.id, [])) for c in containers
-    ]
+    container_name_by_id = {c.id: c.name for c in containers}
+    children_by_parent: dict[int, list[int]] = {}
+    for c in containers:
+        if c.parent_id is not None:
+            children_by_parent.setdefault(c.parent_id, []).append(c.id)
+
+    result: list[InventoryContainer] = []
+    for c in containers:
+        child_ids = children_by_parent.get(c.id, [])
+        if not child_ids:
+            result.append(InventoryContainer(id=c.id, name=c.name, items=items_by_container.get(c.id, [])))
+            continue
+        aggregated = list(items_by_container.get(c.id, []))
+        for child_id in child_ids:
+            child_name = container_name_by_id.get(child_id)
+            aggregated.extend(
+                item.model_copy(update={"container_name": child_name})
+                for item in items_by_container.get(child_id, [])
+            )
+        result.append(InventoryContainer(id=c.id, name=c.name, items=aggregated))
+
     if None in items_by_container:
         # id fittizio negativo: i container reali sono SERIAL, partono da 1
         result.append(InventoryContainer(id=-1, name="Senza contenitore", items=items_by_container[None]))

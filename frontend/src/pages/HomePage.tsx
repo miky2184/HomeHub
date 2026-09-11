@@ -104,8 +104,10 @@ export function HomePage() {
                   <span style={{ width: 30, height: 30, borderRadius: '50%', background: colors.bg, color: colors.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Icon size={16} />
                   </span>
-                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-secondary)', width: 56, flexShrink: 0 }}>
-                    {new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit' }).format(new Date(event.start))}
+                  <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-secondary)', width: 90, flexShrink: 0 }}>
+                    {event.all_day
+                      ? 'Tutto il giorno'
+                      : new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit' }).format(new Date(event.start))}
                   </span>
                   <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600 }}>{event.title}</span>
                 </div>
@@ -285,7 +287,7 @@ export function HomePage() {
 
       {data.chores.due_count > 0 && (
         <Card
-          label={`Manutenzione · ${data.chores.due_count}`}
+          label={`Manutenzione · ${data.chores.top.length}`}
           icon={Wrench}
           category="manutenzione"
           footerLabel="Vedi tutte"
@@ -294,7 +296,20 @@ export function HomePage() {
           {data.chores.top.map((chore) => {
             const due = choreDueInfo(chore)
             return (
-              <div key={chore.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+              <div
+                key={chore.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '8px 10px',
+                  marginBottom: 6,
+                  borderRadius: 'var(--radius-control)',
+                  borderLeft: due.overdue ? '4px solid var(--danger)' : '4px solid transparent',
+                  background: due.overdue ? 'var(--danger-bg)' : 'transparent',
+                  borderBottom: due.overdue ? 'none' : '1px solid var(--border)',
+                }}
+              >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-primary)', fontWeight: 600 }}>
                     {chore.title}

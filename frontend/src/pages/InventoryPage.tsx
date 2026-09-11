@@ -69,12 +69,22 @@ export function InventoryPage() {
 
   // Ricerca trasversale: filtra gli oggetti già scaricati (containers include
   // già tutti gli items) su tutti i contenitori, non solo quello selezionato
-  // — per trovare "dov'è finito il tonno" senza aprirli uno a uno.
+  // — per trovare "dov'è finito il tonno" senza aprirli uno a uno. Un master
+  // con figli (es. "Freezer") include già gli oggetti dei figli nella sua
+  // stessa lista (vedi get_inventory_by_container) — dedup per item.id,
+  // altrimenti un oggetto in "Cassetto 1" comparirebbe due volte (una volta
+  // via "Freezer", una via "Cassetto 1" stesso); container_name (il figlio
+  // preciso) batte il nome del master quando presente.
   const trimmedSearch = search.trim().toLowerCase()
   const searchResults = trimmedSearch
-    ? (containers ?? [])
-        .flatMap((c) => c.items.map((item) => ({ item, containerName: c.name })))
-        .filter(({ item }) => item.name.toLowerCase().includes(trimmedSearch))
+    ? Array.from(
+        new Map(
+          (containers ?? [])
+            .flatMap((c) => c.items.map((item) => ({ item, containerName: item.container_name ?? c.name })))
+            .filter(({ item }) => item.name.toLowerCase().includes(trimmedSearch))
+            .map((entry) => [entry.item.id, entry] as const)
+        ).values()
+      )
     : null
 
   return (
@@ -197,7 +207,10 @@ export function InventoryPage() {
               <ItemRow
                 key={item.id}
                 item={item}
-                subtitle={item.category}
+                // container_name presente = oggetto aggregato da un figlio
+                // (contenitore master aperto, es. "Freezer"): mostra da quale
+                // cassetto viene, oltre alla categoria.
+                subtitle={[item.container_name, item.category].filter(Boolean).join(' · ') || null}
                 onAdjust={(delta) => handleAdjust(item.id, delta)}
                 disabled={adjustQuantity.isPending}
               />

@@ -117,6 +117,10 @@ export interface InventoryItem {
   unit: string | null
   expiry_date: string | null
   category: string | null
+  // Nome del contenitore in cui l'oggetto è fisicamente (es. "Cassetto 1"),
+  // presente solo quando compare nella lista aggregata di un master (es.
+  // "Freezer" — vedi get_inventory_by_container in aggregator.py).
+  container_name: string | null
 }
 
 export interface InventoryContainer {

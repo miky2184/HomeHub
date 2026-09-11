@@ -17,32 +17,37 @@ export function AppLayout() {
   }, [appSettings])
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Rail />
-      <main
-        style={{
-          flex: 1,
-          minWidth: 0,
-          overflowY: 'auto',
-          padding: '20px 20px 40px',
-        }}
-      >
-        {/* HomeHub è pensato per il monitor verticale del NUC (~950px di
-            contenuto): senza questo limite, su un browser desktop largo
-            (es. mentre si sviluppa/testa da remoto) card e calendario si
-            allargano a dismisura invece di restare compatti. */}
-        <div
+    // padding esterno = "zona sicura" per la cornice fisica del monitor da
+    // parete, che copre un po' di bordo su tutti i lati (vedi --safe-margin
+    // in theme.css) — senza, rail e header finiscono proprio sotto la cornice.
+    <div style={{ padding: 'var(--safe-margin)', height: '100vh', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', height: '100%', overflow: 'hidden', borderRadius: 'var(--radius-card)' }}>
+        <Rail />
+        <main
           style={{
-            maxWidth: 960,
-            margin: '0 auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--gap-md)',
+            flex: 1,
+            minWidth: 0,
+            overflowY: 'auto',
+            padding: '20px 20px 40px',
           }}
         >
-          <Outlet />
-        </div>
-      </main>
+          {/* HomeHub è pensato per il monitor verticale del NUC (~950px di
+              contenuto): senza questo limite, su un browser desktop largo
+              (es. mentre si sviluppa/testa da remoto) card e calendario si
+              allargano a dismisura invece di restare compatti. */}
+          <div
+            style={{
+              maxWidth: 960,
+              margin: '0 auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--gap-md)',
+            }}
+          >
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

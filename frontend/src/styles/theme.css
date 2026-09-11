@@ -18,6 +18,7 @@
   --warning: #d97b57;
   --on-warning: #ffffff;
   --danger: #c96565;
+  --danger-bg: #f5dede;
 
   --border: #e9dfc9;
   --border-strong: #ddcfaf;
@@ -38,6 +39,11 @@
   --gap-lg: 20px;
   --gap-md: 14px;
   --gap-sm: 8px;
+
+  /* Il monitor da parete è incassato in una cornice fisica che copre un po'
+     di bordo su tutti e 4 i lati: senza questo margine, rail e contenuto
+     finiscono proprio sotto la cornice invece che nell'area visibile. */
+  --safe-margin: 28px;
 
   color-scheme: light;
 }

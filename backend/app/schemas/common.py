@@ -173,6 +173,11 @@ class InventoryItem(BaseModel):
     unit: str | None = None
     expiry_date: date | None = None
     category: str | None = None
+    # Nome del contenitore in cui l'oggetto è FISICAMENTE (es. "Cassetto 1"),
+    # valorizzato solo quando compare nella lista aggregata di un master (es.
+    # "Freezer") — assente quando l'oggetto compare nel proprio contenitore
+    # diretto, per non ripetere un'informazione già ovvia dal contesto.
+    container_name: str | None = None
 
 
 class InventoryContainer(BaseModel):

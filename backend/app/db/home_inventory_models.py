@@ -34,6 +34,10 @@ containers_table = Table(
     home_inventory_metadata,
     Column("id", Integer, primary_key=True),
     Column("name", String(100)),
+    # Gerarchia a 2 livelli (es. "Freezer" master di "Freezer - Cassetto 1/2/3"),
+    # aggiunta in home_inventory_web — NULL per i contenitori "master" o senza
+    # gerarchia. Vedi get_inventory_by_container in services/aggregator.py.
+    Column("parent_id", Integer),
 )
 
 categories_table = Table(
