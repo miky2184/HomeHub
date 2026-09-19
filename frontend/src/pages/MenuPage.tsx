@@ -1,8 +1,10 @@
-import { ChefHat } from 'lucide-react'
+import type { ComponentType } from 'react'
+import { ChefHat, GraduationCap } from 'lucide-react'
 import { useMenuWeek } from '../api/hooks'
 import { Card } from '../components/Card'
 import { MealList } from '../components/MealList'
 import { DAY_LABELS, currentWeekStart } from '../lib/date'
+import { CATEGORY_COLORS, type Category } from '../styles/categories'
 
 function Section({ label, value }: { label: string; value: string | null }) {
   return (
@@ -17,13 +19,65 @@ function Section({ label, value }: { label: string; value: string | null }) {
   )
 }
 
+// Etichetta sopra, valore sotto (come Section) invece che affiancati: con le
+// colonne più strette di prima (Casa/Scuola una accanto all'altra) un
+// layout fianco a fianco andava a capo in modo confuso su etichette lunghe
+// tipo "Spuntino pomeriggio".
 function Row({ label, value }: { label: string; value: string | null }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0' }}>
-      <span style={{ fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>{label}</span>
-      <span style={{ fontSize: 'var(--fs-body)', textAlign: 'right', textTransform: value ? 'uppercase' : 'none' }}>
+    <div style={{ padding: '4px 0' }}>
+      <p style={{ margin: 0, fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>{label}</p>
+      <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-body)', textTransform: value ? 'uppercase' : 'none' }}>
         {value ?? '—'}
+      </p>
+    </div>
+  )
+}
+
+// Intestazione di colonna (icona + etichetta nel colore della categoria):
+// stesso identico abbinamento icona/colore delle due card "Menu di casa" /
+// "Menu scuola" in Home, per riconoscere a colpo d'occhio quale lato è
+// quale anche qui, senza dover leggere le etichette dei singoli pasti.
+function ColumnHeader({
+  label,
+  icon: Icon,
+  category,
+}: {
+  label: string
+  icon: ComponentType<{ size?: number }>
+  category: Category
+}) {
+  const colors = CATEGORY_COLORS[category]
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+      <span
+        aria-hidden
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: '50%',
+          background: colors.bg,
+          color: colors.fg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Icon size={14} />
       </span>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 'var(--fs-label)',
+          fontWeight: 700,
+          color: colors.fg,
+          textTransform: 'uppercase',
+          letterSpacing: 0.4,
+        }}
+      >
+        {label}
+      </p>
     </div>
   )
 }
@@ -49,19 +103,30 @@ export function MenuPage() {
         pasti di casa dall'app dieta.
       </p>
 
-      {/* La figlia pranza a scuola (school_meal); i pasti "casa" sono quelli
-          degli adulti, in ordine cronologico di giornata. */}
+      {/* Due colonne nette, Casa a sinistra / Scuola a destra (stessa
+          disposizione — e stessi colori — delle due card gemelle in Home),
+          invece di un unico elenco con i pasti dei due mondi interfogliati
+          in ordine cronologico: più facile leggere "cosa mangia la bambina
+          a scuola" senza dover scremare le righe di casa in mezzo. */}
       {week.days.map((day) => (
         <Card key={day.day_of_week} label={DAY_LABELS[day.day_of_week]} icon={ChefHat} category="cucina">
-          <Section label="Colazione casa" value={day.home_meals.breakfast} />
-          <Row label="Spuntino mattina casa" value={day.home_meals.snack_morning} />
-          <Row label="Merenda scuola mattina" value={day.snack_morning} />
-          <Section label="Pranzo scuola" value={day.school_meal} />
-          <Section label="Pranzo casa" value={day.home_meals.lunch} />
-          <Row label="Spuntino pomeriggio casa" value={day.home_meals.snack_afternoon} />
-          <Row label="Merenda scuola pomeriggio" value={day.snack_afternoon} />
-          <Section label="Cena casa" value={day.home_meals.dinner} />
-          <Row label="Spuntino sera casa" value={day.home_meals.snack_evening} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 20 }}>
+            <div style={{ borderRight: '1px solid var(--border)', paddingRight: 16 }}>
+              <ColumnHeader label="Casa" icon={ChefHat} category="cucina" />
+              <Section label="Colazione" value={day.home_meals.breakfast} />
+              <Row label="Spuntino mattina" value={day.home_meals.snack_morning} />
+              <Section label="Pranzo" value={day.home_meals.lunch} />
+              <Row label="Spuntino pomeriggio" value={day.home_meals.snack_afternoon} />
+              <Section label="Cena" value={day.home_meals.dinner} />
+              <Row label="Spuntino sera" value={day.home_meals.snack_evening} />
+            </div>
+            <div>
+              <ColumnHeader label="Scuola" icon={GraduationCap} category="scuola" />
+              <Section label="Pranzo" value={day.school_meal} />
+              <Row label="Merenda mattina" value={day.snack_morning} />
+              <Row label="Merenda pomeriggio" value={day.snack_afternoon} />
+            </div>
+          </div>
         </Card>
       ))}
     </>

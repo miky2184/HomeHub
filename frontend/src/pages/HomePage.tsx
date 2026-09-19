@@ -1,4 +1,4 @@
-import { CalendarDays, CheckSquare, ChefHat, Check, Dumbbell, House, Package, ShoppingBasket, Wrench } from 'lucide-react'
+import { CalendarDays, CheckSquare, ChefHat, Check, Dumbbell, GraduationCap, House, Package, ShoppingBasket, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { HomeMeals } from '../api/types'
 import { useHomeSummary, useMarkTrainingDone, useToggleShoppingItem, useUpdateChore } from '../api/hooks'
@@ -223,7 +223,7 @@ export function HomePage() {
 
         <Card
           label={`Menu scuola · ${menuDayLabel(data.today_menu?.date)}`}
-          icon={ChefHat}
+          icon={GraduationCap}
           category="scuola"
           footerLabel="Vedi menu mensa"
           onFooterClick={() => navigate('/menu')}
