@@ -236,11 +236,16 @@ export function HomePage() {
           {(data.today_menu?.snack_morning || data.today_menu?.snack_afternoon) && (
             <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
               <p style={{ margin: 0, fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
-                Merenda mattina: <span style={{ color: 'var(--text-primary)' }}>{data.today_menu?.snack_morning ?? '—'}</span>
+                Merenda mattina:{' '}
+                <span style={{ color: 'var(--text-primary)', textTransform: data.today_menu?.snack_morning ? 'uppercase' : 'none' }}>
+                  {data.today_menu?.snack_morning ?? '—'}
+                </span>
               </p>
               <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
                 Merenda pomeriggio:{' '}
-                <span style={{ color: 'var(--text-primary)' }}>{data.today_menu?.snack_afternoon ?? '—'}</span>
+                <span style={{ color: 'var(--text-primary)', textTransform: data.today_menu?.snack_afternoon ? 'uppercase' : 'none' }}>
+                  {data.today_menu?.snack_afternoon ?? '—'}
+                </span>
               </p>
             </div>
           )}

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
+import { showToast } from '../lib/toast'
 import type {
   AppSettings,
   AppSettingsUpdate,
@@ -58,6 +59,9 @@ export function useChangePassword() {
   return useMutation({
     mutationFn: (payload: { current_password: string; new_password: string }) =>
       api.post<{ ok: true }>('/api/auth/change-password', payload),
+    // L'errore ha già un messaggio specifico inline in SicurezzaSection
+    // ("Password attuale errata."): niente toast di errore duplicato qui.
+    onSuccess: () => showToast('Impostazioni salvate'),
   })
 }
 
@@ -164,7 +168,11 @@ export function useUpsertSchoolTemplate() {
   return useMutation({
     mutationFn: (entries: SchoolMenuTemplateEntry[]) =>
       api.put('/api/menu/settings/school-template', { entries }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      showToast('Impostazioni salvate')
+    },
+    onError: () => showToast('Salvataggio non riuscito, riprova', 'error'),
   })
 }
 
@@ -172,7 +180,11 @@ export function useUpsertSchoolAnchor() {
   const invalidate = useInvalidateMenu()
   return useMutation({
     mutationFn: (payload: SchoolMenuCycleAnchor) => api.put('/api/menu/settings/school-anchor', payload),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      showToast('Impostazioni salvate')
+    },
+    onError: () => showToast('Salvataggio non riuscito, riprova', 'error'),
   })
 }
 
@@ -180,7 +192,11 @@ export function useUpsertSnacks() {
   const invalidate = useInvalidateMenu()
   return useMutation({
     mutationFn: (entries: SnackTemplateEntry[]) => api.put('/api/menu/settings/snacks', { entries }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      showToast('Impostazioni salvate')
+    },
+    onError: () => showToast('Salvataggio non riuscito, riprova', 'error'),
   })
 }
 
@@ -465,7 +481,9 @@ export function useUpdateAppSettings() {
       queryClient.setQueryData(['app-settings'], data)
       // Nome famiglia e meteo compaiono anche in Home.
       queryClient.invalidateQueries({ queryKey: ['home-summary'] })
+      showToast('Impostazioni salvate')
     },
+    onError: () => showToast('Salvataggio non riuscito, riprova', 'error'),
   })
 }
 

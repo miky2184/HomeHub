@@ -30,7 +30,7 @@ export function MealList({ text, color = 'var(--text-primary)' }: MealListProps)
           <span aria-hidden style={{ color, lineHeight: 'var(--fs-body)' }}>
             ·
           </span>
-          <span style={{ fontSize: 'var(--fs-body)', color }}>{line}</span>
+          <span style={{ fontSize: 'var(--fs-body)', color, textTransform: 'uppercase' }}>{line}</span>
         </div>
       ))}
     </div>

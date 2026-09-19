@@ -21,7 +21,9 @@ function Row({ label, value }: { label: string; value: string | null }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0' }}>
       <span style={{ fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>{label}</span>
-      <span style={{ fontSize: 'var(--fs-body)', textAlign: 'right' }}>{value ?? '—'}</span>
+      <span style={{ fontSize: 'var(--fs-body)', textAlign: 'right', textTransform: value ? 'uppercase' : 'none' }}>
+        {value ?? '—'}
+      </span>
     </div>
   )
 }

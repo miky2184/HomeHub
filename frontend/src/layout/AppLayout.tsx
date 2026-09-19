@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useAppSettings } from '../api/hooks'
 import { Rail } from '../components/Rail'
+import { ToastHost } from '../components/ToastHost'
 import { useIdleRedirect } from '../hooks/useIdleRedirect'
 import { applyBackgroundTheme } from '../lib/palette'
 
@@ -48,6 +49,7 @@ export function AppLayout() {
           </div>
         </main>
       </div>
+      <ToastHost />
     </div>
   )
 }
