@@ -234,4 +234,4 @@ frontend/.env.local
 backend/.env
 backend/.venv/
 backend/.garmin_tokens/
-
+backend/.htpasswd
