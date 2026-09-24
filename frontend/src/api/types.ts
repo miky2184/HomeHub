@@ -101,6 +101,9 @@ export interface InventoryAlert {
   item_name: string
   quantity: number | null
   unit: string | null
+  // Formato di UNA confezione (es. "400g", "750ml") — quantity/unit contano
+  // invece "quante ne hai" (es. 3 pz), sono due informazioni distinte.
+  package_size: string | null
   expiry_date: string | null
   days_to_expiry: number | null
   container_name: string | null
@@ -115,6 +118,9 @@ export interface InventoryItem {
   name: string
   quantity: number | null
   unit: string | null
+  // Formato di UNA confezione (es. "400g", "750ml") — quantity/unit contano
+  // invece "quante ne hai" (es. 3 pz), sono due informazioni distinte.
+  package_size: string | null
   expiry_date: string | null
   category: string | null
   // Nome del contenitore in cui l'oggetto è fisicamente (es. "Cassetto 1"),

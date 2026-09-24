@@ -24,8 +24,14 @@ items_table = Table(
     Column("name", String(200)),
     Column("container_id", Integer),
     Column("category_id", Integer),
+    # quantity conta le confezioni possedute (es. 3), unit_measure è l'unità
+    # di conteggio di quel numero (es. "pz" — o "kg"/"L" per uno sfuso senza
+    # confezioni discrete). package_size è un'altra cosa: il formato/la
+    # dimensione di UNA confezione (es. "400g", "750ml"), non quante ne hai
+    # — vedi model/request/inventory_request.py in python-finanze-api.
     Column("quantity", Integer),
     Column("unit_measure", String(20)),
+    Column("package_size", String(20)),
     Column("expiry_date", Date),
 )
 

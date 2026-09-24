@@ -2,6 +2,7 @@
 tabelle manuali (menu scolastico, allenamenti) dal Postgres dedicato."""
 
 import asyncio
+import logging
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
@@ -59,6 +60,7 @@ from app.services import cache
 from app.services.quotes import quote_of_day
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 # Dopo quest'ora, Home mostra il menu/le merende di domani invece che di
 # oggi (comodo la sera, per sapere cosa preparare al mattino).
@@ -108,6 +110,7 @@ def get_inventory_alerts(db: Session, today: date) -> list[InventoryAlert]:
             items_table.c.name,
             items_table.c.quantity,
             items_table.c.unit_measure,
+            items_table.c.package_size,
             items_table.c.expiry_date,
             containers_table.c.name.label("container_name"),
         )
@@ -126,6 +129,7 @@ def get_inventory_alerts(db: Session, today: date) -> list[InventoryAlert]:
                 item_name=row.name,
                 quantity=row.quantity,
                 unit=row.unit_measure,
+                package_size=row.package_size,
                 expiry_date=row.expiry_date,
                 days_to_expiry=days,
                 container_name=row.container_name,
@@ -163,6 +167,7 @@ def get_inventory_by_container(db: Session) -> list[InventoryContainer]:
             items_table.c.container_id,
             items_table.c.quantity,
             items_table.c.unit_measure,
+            items_table.c.package_size,
             items_table.c.expiry_date,
             categories_table.c.name.label("category_name"),
         )
@@ -178,6 +183,7 @@ def get_inventory_by_container(db: Session) -> list[InventoryContainer]:
                 name=row.name,
                 quantity=row.quantity,
                 unit=row.unit_measure,
+                package_size=row.package_size,
                 expiry_date=row.expiry_date,
                 category=row.category_name,
             )
@@ -210,19 +216,26 @@ def get_inventory_by_container(db: Session) -> list[InventoryContainer]:
     return result
 
 
-def adjust_item_quantity(db: Session, item_id: int, delta: int) -> InventoryItem | None:
+async def adjust_item_quantity(db: Session, item_id: int, delta: int) -> InventoryItem | None:
     """Unica scrittura di HomeHub su home_inventory: +/- rapido sulla
     quantità di un oggetto già esistente (es. +6 comprando un fardello
     d'acqua, -1 bevendo un vino), per evitare di aprire home_inventory_web
     solo per questo. Clampata a 0 (mai negativa) e a differenza di
     home_inventory_web non elimina l'oggetto quando arriva a zero — restare
     conservativi da qui, l'eliminazione resta compito della web app dedicata.
-    None se l'oggetto non esiste (container_id/category_id invariati)."""
+    None se l'oggetto non esiste (container_id/category_id invariati).
+
+    Quando la quantità passa da >0 a 0 (è appena "finito"), lo aggiunge da
+    solo alla lista della spesa di Bring! — l'occasione più naturale per
+    ricordarselo è proprio il momento in cui lo si segna esaurito da qui,
+    non quando ormai è già scaduto. Solo sulla transizione: se era già a
+    zero (utente che clicca "-" a vuoto) non lo riaggiunge ad ogni click."""
     row = db.execute(select(items_table.c.id, items_table.c.quantity).where(items_table.c.id == item_id)).first()
     if row is None:
         return None
 
-    new_quantity = max(0, (row.quantity or 0) + delta)
+    previous_quantity = row.quantity or 0
+    new_quantity = max(0, previous_quantity + delta)
     db.execute(items_table.update().where(items_table.c.id == item_id).values(quantity=new_quantity))
     db.commit()
 
@@ -232,6 +245,7 @@ def adjust_item_quantity(db: Session, item_id: int, delta: int) -> InventoryItem
             items_table.c.name,
             items_table.c.quantity,
             items_table.c.unit_measure,
+            items_table.c.package_size,
             items_table.c.expiry_date,
             categories_table.c.name.label("category_name"),
         )
@@ -244,11 +258,28 @@ def adjust_item_quantity(db: Session, item_id: int, delta: int) -> InventoryItem
         # trovato" di sopra, non un errore imprevisto: la route deve poter
         # rispondere 404 invece di un 500 su un attributo di None.
         return None
+
+    if previous_quantity > 0 and new_quantity == 0:
+        # Best-effort: se Bring! non risponde, la quantità è comunque già
+        # stata aggiornata e commitata sopra — non deve tornare un 500 alla
+        # UI per un problema di un servizio esterno diverso.
+        try:
+            specification = updated.package_size or None
+            await bring_adapter.perform_action("add_item", {"name": updated.name, "specification": specification})
+            cache.invalidate("shopping_items")
+        except Exception:
+            logger.warning(
+                "Aggiunta automatica a Bring! fallita per %r (quantità comunque aggiornata)",
+                updated.name,
+                exc_info=True,
+            )
+
     return InventoryItem(
         id=updated.id,
         name=updated.name,
         quantity=updated.quantity,
         unit=updated.unit_measure,
+        package_size=updated.package_size,
         expiry_date=updated.expiry_date,
         category=updated.category_name,
     )
@@ -748,7 +779,10 @@ async def build_home_summary(db: Session) -> HomeSummary:
         today_menu=today_menu,
         next_training=next_training,
         shopping_preview=unchecked[: effective_settings().shopping_preview_limit],
-        shopping_total_count=len(shopping_items),
+        # "prodotti da comprare": solo i non ancora spuntati, non il totale
+        # della lista (che includerebbe anche quelli già presi ma non ancora
+        # rimossi da Bring!).
+        shopping_total_count=len(unchecked),
         inventory_alerts=inventory_alerts,
         chores=chores,
         todos=todos,

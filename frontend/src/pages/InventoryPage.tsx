@@ -21,6 +21,16 @@ const quantityBtnStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
+// quantity/unit contano "quante confezioni possediamo" (es. 3 pz);
+// package_size è il formato di UNA di quelle confezioni (es. "400g") — due
+// informazioni distinte, mostrate insieme solo qui in un'unica stringa
+// leggibile (es. "3 pz da 400g").
+function formatQuantity(quantity: number | null, unit: string | null, packageSize: string | null): string | null {
+  if (quantity == null) return null
+  const base = `${quantity} ${unit ?? ''}`.trim()
+  return packageSize ? `${base} da ${packageSize}` : base
+}
+
 const REASON_LABEL: Record<InventoryAlert['reason'], string> = {
   expired: 'Scaduto',
   critical: 'Scade a breve',
@@ -53,8 +63,7 @@ export function InventoryPage() {
   }, [containers, selectedContainerId])
 
   function handleAddToBring(alert: InventoryAlert) {
-    const specification =
-      alert.quantity != null ? `${alert.quantity} ${alert.unit ?? ''}`.trim() : undefined
+    const specification = formatQuantity(alert.quantity, alert.unit, alert.package_size) ?? undefined
     addShoppingItem.mutate(
       { name: alert.item_name, specification },
       { onSuccess: () => setAdded((prev) => new Set(prev).add(alert.id)) }
@@ -114,7 +123,9 @@ export function InventoryPage() {
             <div style={{ minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text-primary)' }}>
                 {alert.item_name}
-                {alert.quantity != null ? ` — ${alert.quantity} ${alert.unit ?? ''}` : ''}
+                {formatQuantity(alert.quantity, alert.unit, alert.package_size)
+                  ? ` — ${formatQuantity(alert.quantity, alert.unit, alert.package_size)}`
+                  : ''}
               </p>
               {alert.container_name && (
                 <p style={{ margin: '2px 0 0', fontSize: 'var(--fs-label)', color: 'var(--text-secondary)' }}>
@@ -266,8 +277,15 @@ function ItemRow({
         >
           <Minus size={14} />
         </button>
-        <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-secondary)', minWidth: 44, textAlign: 'center' }}>
-          {item.quantity ?? '—'} {item.unit ?? ''}
+        <span style={{ minWidth: 44, textAlign: 'center' }}>
+          <span style={{ display: 'block', fontSize: 'var(--fs-body)', color: 'var(--text-secondary)' }}>
+            {item.quantity ?? '—'} {item.unit ?? ''}
+          </span>
+          {item.package_size && (
+            <span style={{ display: 'block', fontSize: 'var(--fs-label)', color: 'var(--text-muted)' }}>
+              da {item.package_size}
+            </span>
+          )}
         </span>
         <button
           onClick={() => onAdjust(1)}

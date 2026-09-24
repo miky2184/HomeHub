@@ -7,11 +7,19 @@
 
 const BULLET_PREFIX = /^[·\-*•]\s*/
 
+// L'app dieta infila anche gli allenamenti dentro il testo del pasto del
+// giorno (righe tipo "Sport: corsa 10.0km") — c'è già la pagina Attività
+// per quello, qui nel menu vogliamo vedere solo i pasti. Le righe "Evento:
+// ..." invece restano (es. "Evento: BBQ"), non sono doppioni di un'altra
+// pagina dell'app.
+const SPORT_LINE = /^sport\s*:/i
+
 function parseMealLines(text: string): string[] {
   return text
     .split('\n')
     .map((line) => line.replace(BULLET_PREFIX, '').trim())
     .filter(Boolean)
+    .filter((line) => !SPORT_LINE.test(line))
 }
 
 interface MealListProps {

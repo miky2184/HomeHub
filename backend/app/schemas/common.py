@@ -155,6 +155,10 @@ class InventoryAlert(BaseModel):
     item_name: str
     quantity: float | None = None
     unit: str | None = None
+    # Formato di UNA confezione (es. "400g", "750ml") — distinto da
+    # quantity/unit che contano "quante ne hai" (es. 3 pz), vedi il commento
+    # su package_size in app/db/home_inventory_models.py.
+    package_size: str | None = None
     expiry_date: date | None = None
     days_to_expiry: int | None = None
     container_name: str | None = None
@@ -171,6 +175,10 @@ class InventoryItem(BaseModel):
     name: str
     quantity: float | None = None
     unit: str | None = None
+    # Formato di UNA confezione (es. "400g", "750ml") — distinto da
+    # quantity/unit che contano "quante ne hai" (es. 3 pz), vedi il commento
+    # su package_size in app/db/home_inventory_models.py.
+    package_size: str | None = None
     expiry_date: date | None = None
     category: str | None = None
     # Nome del contenitore in cui l'oggetto è FISICAMENTE (es. "Cassetto 1"),

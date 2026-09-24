@@ -28,11 +28,13 @@ def list_containers(db: Session = Depends(get_db)) -> list[InventoryContainer]:
 
 
 @router.patch("/items/{item_id}/quantity", response_model=InventoryItem)
-def adjust_quantity(item_id: int, payload: InventoryQuantityDelta, db: Session = Depends(get_db)) -> InventoryItem:
+async def adjust_quantity(item_id: int, payload: InventoryQuantityDelta, db: Session = Depends(get_db)) -> InventoryItem:
     """Unica scrittura consentita da Casa su home_inventory: +/- rapido sulla
     quantità (comprare un fardello d'acqua, bere un vino), senza dover aprire
-    home_inventory_web. Non crea né elimina oggetti."""
-    item = adjust_item_quantity(db, item_id, payload.delta)
+    home_inventory_web. Non crea né elimina oggetti. Se la quantità arriva a
+    zero, l'oggetto viene anche aggiunto da solo alla lista della spesa di
+    Bring! (vedi adjust_item_quantity)."""
+    item = await adjust_item_quantity(db, item_id, payload.delta)
     if item is None:
         raise HTTPException(status_code=404, detail="Oggetto non trovato")
     return item
